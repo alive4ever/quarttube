@@ -423,12 +423,12 @@ async def post_subtitle_request(params):
 def extract_caption_segments_from_json(subtitle_data: {}, sub_lang: str = 'en'):
     body_part = find_by_key(subtitle_data['actions'][0], 'body')
     vtt_body = find_by_key(body_part, 'initialSegments')
+    continuation_param = None
     if vtt_body:
         result = { 'caption_segments': vtt_body, 'continuation': None }
     else:
         footer = find_by_key(subtitle_data['actions'][0], 'footer')
         footer_submenu = find_by_key(footer, 'subMenuItems')
-        footer_submenu
         for item in footer_submenu:
             if sub_lang in item['title'].lower():
                 continuation_param = find_by_key(item['continuation'], 'continuation')
