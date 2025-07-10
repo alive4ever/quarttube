@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+ <head>
+  <meta charset="utf-8"/>
+  <title>
+   Nico Search Lite
+  </title>
+  <meta content="width=device-width, initial-scale=1" name="viewport"/>
+  <style>
+   /* Container for the main content */
+   body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+      max-width: 800px;
+      margin: auto;
+   }
+
+   h1, h2 {
+      color: #333;
+   }
+
+   /* Form styling */
+   form {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 20px;
+   }
+
+   input[type="text"],
+   input[type="number"] {
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 1em;
+   }
+
+   input[type="submit"] {
+      padding: 10px;
+      border: none;
+      border-radius: 5px;
+      background-color: #007BFF;
+      color: white;
+      font-size: 1em;
+      cursor: pointer;
+      transition: background-color 0.3s;
+   }
+
+   input[type="submit"]:hover {
+      background-color: #0056b3;
+   }
+
+   /* Link styling */
+   a {
+      text-decoration: none;
+      color: #007BFF;
+   }
+
+   a:hover {
+      text-decoration: underline;
+   }
+
+   /* Button styling */
+   .button {
+      display: inline-block;
+      padding: 10px 15px;
+      margin-top: 20px;
+      border: none;
+      border-radius: 5px;
+      background-color: #007BFF;
+      color: white;
+      text-align: center;
+      text-decoration: none;
+      font-size: 1em;
+      cursor: pointer;
+      transition: background-color 0.3s;
+   }
+
+   .button:hover {
+      background-color: #0056b3;
+   }
+  </style>
+ </head>
+ <body>
+  <h1>
+   Nico Search Lite
+  </h1>
+  <h2>
+   What?
+  </h2>
+  <p>
+   This is just a lite interface for Nicovideo Search.
+  </p>
+  <h2>
+   How?
+  </h2>
+  <p>
+   Input your search string in the search box and press enter.
+  </p>
+  <form action="nicosearch" id="nicosearch">
+   <input name="query" placeholder="Input your search query" required="" type="text"/>
+   <input min="1" name="max_result" placeholder="Max result" type="number" value="20"/>
+   <input type="submit" value="Search"/>
+  </form>
+  <hr/>
+  <p>
+   <a class="button" href="/">
+    Back to homepage
+   </a>
+  </p>
+ </body>
+</html>

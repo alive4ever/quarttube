@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html>
+ <head>
+  <meta charset="utf-8"/>
+  <title>
+   Search Results
+  </title>
+  <meta content="width=device-width, initial-scale=1" name="viewport"/>
+  <style>
+   /* General body styling */
+   body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+      max-width: 800px;
+      margin: auto;
+   }
+
+   h1 {
+      color: #333;
+   }
+
+   /* Introductory text styling */
+   .intro {
+      margin-bottom: 20px;
+      font-size: 1.1em;
+      color: #555;
+   }
+
+   /* Container for all cards */
+    .card-container {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      max-width: 800px;
+      margin: auto;
+      padding: 20px;
+    }
+    
+    /* Each card styling */
+    .card {
+      display: flex;
+      align-items: center;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      overflow: hidden;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      transition: box-shadow 0.2s;
+    }
+    
+    .card:hover {
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+    }
+    
+    /* Thumbnail container with relative positioning for duration overlay */
+    .thumbnail {
+      position: relative;
+      flex-shrink: 0;
+    }
+    
+    /* Thumbnail image styles */
+    .thumbnail img {
+      display: block;
+      width: 240px;
+      height: auto;
+      object-fit: cover;
+    }
+    
+    /* Duration overlay styling */
+    .thumbnail .duration {
+      position: absolute;
+      bottom: 5px;
+      right: 5px;
+      background-color: rgba(0, 0, 0, 0.7);
+      color: #fff;
+      padding: 2px 5px;
+      font-size: 0.8em;
+      border-radius: 3px;
+    }
+    
+    /* Details container styling */
+    .details {
+      margin-left: 15px;
+      flex-grow: 1;
+    }
+    
+    /* Clickable title styling */
+    .details a {
+      text-decoration: none;
+      color: #007BFF;
+      font-size: 1.2em;
+      font-weight: bold;
+    }
+    
+   /* Button styling */
+   .button {
+      display: inline-block;
+      padding: 10px 15px;
+      margin-top: 20px;
+      border: none;
+      border-radius: 5px;
+      background-color: #007BFF;
+      color: white;
+      text-align: center;
+      text-decoration: none;
+      font-size: 1em;
+      cursor: pointer;
+      transition: background-color 0.3s;
+   }
+
+   .button:hover {
+      background-color: #0056b3;
+   }
+
+    /* Updated button container styling */
+    .navigation-buttons {
+      display: flex;
+      margin-top: 20px;
+      gap: 10px;
+    }
+    /* Responsive styling */
+    @media (max-width: 600px) {
+      .card {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      
+      .thumbnail img {
+        width: 100%;
+        height: auto;
+      }
+      
+      .details {
+        margin: 10px;
+      }
+    }
+  </style>
+ </head>
+ <body>
+  <h1>
+   Search Result Page for {{ search_query }}
+  </h1>
+  <div class="intro">
+   You entered
+   <i>
+    {{ search_query }}
+   </i>
+   to search.
+
+   Got approximately {{ total_result }} results in {{ total_pages }} pages.
+  </div>
+  <div class="card-container">
+   {% for item in search_data %}
+   <div class="card">
+    <div class="thumbnail">
+     <img alt="Thumbnail for {{ item['title'] }}" src="{{ item['thumbnail'] }}"/>
+     <div class="duration">
+      {{ item['duration'] }}
+     </div>
+    </div>
+    <div class="details">
+     <a href="{{ item['web_url'] }}" target="_blank">
+      {{ item['title'] }}
+     </a>
+     <pre>Total views: {{ item['play_count'] }}</pre>
+    </div>
+   </div>
+   {% endfor %}
+  </div>
+  <div class="navigation-buttons">
+   <a class="button" href="bilisearch?query={{ request.args['query'] }}&amp;pagenum={{ page_next }}">
+    Next page
+   </a>
+   <a class="button" href="bilisearch">
+    Search page
+   </a>
+  </div>
+ </body>
+</html>

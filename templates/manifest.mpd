@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<MPD xmlns="http://dashif.org/schema/DASH" 
+     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+     xsi:schemaLocation="http://dashif.org/schema/DASH http://dashif.org/schema/DASH/MPEG-DASH.xsd" 
+     profile="urn:mpeg:dash:profile:isoff-on-demand:2011" 
+     type="static" 
+	mediaPresentationDuration="PT{{ get_period_mpd(media['duration']) }}" 
+     minBufferTime="PT1.5S">
+
+    <Period duration="PT{{ get_period_mpd(media['duration']) }}">
+        <AdaptationSet mimeType="{{ media['video']['type'] }}" segmentAlignment="true" startWithSAP="1">
+            <Representation id="video_{{ media['video']['height'] }}p" 
+                             bandwidth="{{ media['video']['bitrate'] }}" 
+                             width="{{ media['video']['width'] }}" 
+                             height="{{ media['video']['height'] }}" 
+                             frameRate="{{ media['video']['fps'] }}" 
+                             codecs="{{ media['video']['codecs'] }}">
+                <BaseURL>{{ media['video']['short_url'] }}</BaseURL>
+		{% if media['video'].get('segment_base') %}
+                <SegmentBase indexRange="{{ media['video']['segment_base']['index_range'] }}">
+			<Initialization range="{{ media['video']['segment_base']['initialization'] }}"	/>
+		</SegmentBase>
+		{% endif %}
+            </Representation>
+        </AdaptationSet>
+
+        <AdaptationSet mimeType="{{ media['audio']['type'] }}" segmentAlignment="true" startWithSAP="1">
+            <Representation id="audio_stereo" 
+                             bandwidth="{{ media['audio']['bitrate'] }}" 
+                             codecs="{{ media['audio']['codecs'] }}">
+                <BaseURL>{{ media['audio']['short_url'] }}</BaseURL>
+		{% if media['audio'].get('segment_base') %}
+                <SegmentBase indexRange="{{ media['audio']['segment_base']['index_range'] }}">
+			<Initialization range="{{ media['audio']['segment_base']['initialization'] }}"	/>
+		</SegmentBase>
+		{% endif %}
+            </Representation>
+        </AdaptationSet>
+    </Period>
+</MPD>

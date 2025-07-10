@@ -1,0 +1,335 @@
+<!DOCTYPE HTML>
+<html>
+ <head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width,initial-scale=1" name="viewport"/>
+  <title>
+   Video Page of {{ media.get('title') or video_id }}
+  </title>
+  <style>
+   body {
+    font-family: Arial, sans-serif; /* Set a default font */
+    max-width: 800px; /* Limit the width of the content */
+    margin: auto; /* Center the content */
+    padding: 5px;
+    background-color: #f4f4f4; /* Light background color */
+    font-size: min(1.2em, 16px);
+  }
+
+  h1 {
+    color: #333; /* Darker color for headings */
+  }
+
+  .video-player {
+    max-width: 640px; /* Set the maximum width of the video player */
+    width: 100%; /* Allow the video player to be responsive */
+    height: auto; /* Maintain aspect ratio */
+    margin: 0 auto; /* Center the video player */
+    overflow: hidden; /* Prevent overflow of content */
+    background-color: #000; /* Black background for video player */
+    border-radius: 5px; /* Rounded corners */
+    font-size: min(1.2em, 14px);
+  }
+
+  .video-player video {
+    width: 100%; /* Make the video fill the player */
+    height: auto; /* Maintain aspect ratio */
+    object-fit: cover; /* Ensure the video covers the player area */
+  }
+
+  details {
+    margin-top: 20px; /* Space above details section */
+    background-color: #fff; /* White background for details */
+    padding: 10px; /* Padding for details */
+    border-radius: 5px; /* Rounded corners */
+    border: 1px solid #ccc; /* Border for details */
+  }
+
+  summary {
+    font-weight: bold; /* Bold text for summary */
+    cursor: pointer; /* Pointer cursor for summary */
+  }
+
+  /* Touch-friendly link styling */
+  .touch-friendly-link {
+    display: inline-block; /* Make it a block element for padding */
+    padding: 10px 15px; /* Add padding for a larger clickable area */
+    background-color: #007BFF; /* Background color */
+    color: #fff; /* Text color */
+    text-decoration: none; /* Remove underline */
+    border-radius: 5px; /* Rounded corners */
+    transition: background-color 0.3s; /* Smooth transition */
+  }
+
+  .touch-friendly-link:hover,
+  .touch-friendly-link:focus {
+    background-color: #0056b3; /* Darker shade on hover/focus */
+  }
+
+  /* Controls styling */
+  .controls {
+    display: flex; /* Use flexbox for controls layout */
+    align-items: center; /* Center items vertically */
+    margin-top: 10px; /* Space above controls */
+  }
+
+  .controls button,
+  .controls input[type="range"] {
+    margin-right: 10px; /* Space between controls */
+  }
+
+  .controls button {
+    padding: 5px 10px; /* Padding for buttons */
+    background-color: #007BFF; /* Button background color */
+    color: #fff; /* Button text color */
+    border: none; /* Remove border */
+    border-radius: 5px; /* Rounded corners */
+    cursor: pointer; /* Pointer cursor on hover */
+    transition: background-color 0.3s; /* Smooth transition */
+  }
+
+  .controls button:hover {
+    background-color: #0056b3; /* Darker shade on hover */
+  }
+
+  .time {
+    font-size: 0.9em; /* Smaller font size for time display */
+  }
+
+  pre {
+    overflow: auto;
+  }
+  /* Media Queries */
+  @media (max-width: 768px) { /* For tablets and smaller devices */
+    .video-player {
+      max-width: 100%; /* Allow full width on smaller screens */
+    }
+  }
+
+  @media (max-width: 480px) { /* For mobile phones */
+    .video-player {
+      max-width: 100%; /* Allow full width on mobile screens */
+      padding: 5px; /* Optional: Add some padding */
+    }
+
+    .video-player video {
+      height: auto; /* Maintain aspect ratio */
+    }
+  }
+  </style>
+ </head>
+ <body>
+  <h1>
+   Video Page of {{ media.get('title') or video_id }}
+  </h1>
+  <div class="video-player">
+   {% if media['is_hls'] is sameas true %}
+   <script src="https://cdn.jsdelivr.net/npm/hls.js@1.6.6/dist/hls.min.js">
+   </script>
+   <video controls="" id="video" poster="{{ media['thumbnail'] }}">
+   </video>
+   <script>
+    var video = document.getElementById('video');
+        if (Hls.isSupported()) {
+          var hls = new Hls();
+          hls.loadSource('{{ media['hls_manifest'] }}');
+          hls.attachMedia(video);
+          hls.on(Hls.Events.MANIFEST_PARSED, function() {
+            video.play();
+          });
+        } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+          video.src = '{{ media['hls_manifest'] }}';
+          video.addEventListener('canplay', function() {
+            video.play();
+          });
+        }
+   </script>
+   {% elif use_dash_js == True %}
+   <script src="https://cdn.jsdelivr.net/npm/dashjs@5.0.3/dist/legacy/umd/dash.all.min.js">
+   </script>
+   <video controls="" id="videoPlayer" poster="{{ media['thumbnail'] }}">
+    {% if media.get('subtitles') %}
+    <track default="" kind="subtitles" label="{{ sub_lang }}" src="{{ media['subtitles'][sub_lang] }}" srclang="{{ sub_lang }}"/>
+    {% endif %}
+   </video>
+   <script>
+    var url = "{{ media['mpd_manifest'] }}";
+        var player = dashjs.MediaPlayer().create();
+        player.initialize(document.querySelector("#videoPlayer"), url, true);
+   </script>
+   {% else %}
+   <video id="videoPlayer" poster="{{ media['thumbnail'] }}">
+    <source src="{{ media['video']['short_url'] }}" type="{{ media['video']['type'] }}"/>
+   </video>
+   <audio id="audioPlayer" src="{{ media['audio']['short_url'] }}" type="{{ media['audio']['type'] }}">
+   </audio>
+   <div class="controls">
+    <button id="playPauseBtn">
+     Play
+    </button>
+    <input id="progressBar" step="0.1" type="range" value="0"/>
+    <div class="time">
+     <span id="currentTime">
+      0:00
+     </span>
+     /
+     <span id="duration">
+      0:00
+     </span>
+    </div>
+    <button id="muteBtn">
+     Mute
+    </button>
+    <input id="volumeControl" max="1" min="0" step="0.1" type="range" value="1"/>
+    <button id="pipBtn">
+     PIP
+    </button>
+    <button id="fullscreenBtn">
+     Fullscreen
+    </button>
+   </div>
+   <script type="text/javascript">
+    const videoPlayer = document.getElementById('videoPlayer');
+        const playPauseBtn = document.getElementById('playPauseBtn');
+        const volumeControl = document.getElementById('volumeControl');
+        const muteBtn = document.getElementById('muteBtn');
+        const fullscreenBtn = document.getElementById('fullscreenBtn');
+        const pipBtn = document.getElementById('pipBtn');
+        const currentTimeDisplay = document.getElementById('currentTime');
+        const durationDisplay = document.getElementById('duration');
+        const progressBar = document.getElementById('progressBar');
+        const audioTrack = document.getElementById('audioPlayer');
+
+        // Play/Pause functionality
+        playPauseBtn.addEventListener('click', () => {
+            if (videoPlayer.paused) {
+                videoPlayer.play();
+                audioTrack.play();
+                playPauseBtn.textContent = 'Pause';
+            } else {
+                videoPlayer.pause();
+                audioTrack.pause();
+                playPauseBtn.textContent = 'Play';
+            }
+        });
+
+        // Volume control
+        volumeControl.addEventListener('input', () => {
+            videoPlayer.volume = volumeControl.value;
+            audioTrack.volume = volumeControl.value;
+        });
+
+        // Mute functionality
+        let isMuted = false;
+        muteBtn.addEventListener('click', () => {
+            isMuted = !isMuted;
+            videoPlayer.muted = isMuted;
+            audioTrack.muted = isMuted;
+            muteBtn.textContent = isMuted ? 'Unmute' : 'Mute';
+        });
+
+        // Picture-in-Picture functionality
+        pipBtn.addEventListener('click', async () => {
+            if (videoPlayer !== document.pictureInPictureElement) {
+                await videoPlayer.requestPictureInPicture();
+            } else {
+                await document.exitPictureInPicture();
+            }
+        });
+
+        // Fullscreen toggle
+        fullscreenBtn.addEventListener('click', () => {
+            if (!document.fullscreenElement) {
+                videoPlayer.requestFullscreen();
+            } else {
+                document.exitFullscreen();
+            }
+        });
+
+        // Update time display and progress bar
+        videoPlayer.addEventListener('loadedmetadata', () => {
+            durationDisplay.textContent = formatTime(videoPlayer.duration);
+            progressBar.max = videoPlayer.duration;
+        });
+
+        videoPlayer.addEventListener('timeupdate', () => {
+            currentTimeDisplay.textContent = formatTime(videoPlayer.currentTime);
+            progressBar.value = videoPlayer.currentTime;
+        });
+
+        // Seek functionality
+        progressBar.addEventListener('input', () => {
+            videoPlayer.currentTime = progressBar.value;
+            audioTrack.currentTime = progressBar.value;
+        });
+
+        // Format time function
+        function formatTime(seconds) {
+            const minutes = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${minutes}:${secs < 10 ? '0' : ''}${secs}`;
+        }
+   </script>
+   {% endif %}
+  </div>
+  <details>
+   <summary>
+    Video Details
+   </summary>
+   <p>
+   </p>
+   {% with desc =  media.get('description') %}
+     {% for line in desc.splitlines() %}
+   <p>
+    {{ line }}
+   </p>
+   {% endfor %}
+   {% endwith %}
+   <details>
+    <p>
+     Link of
+     <a href="{{ media['video']['short_url'] }}">
+      video track
+     </a>
+     .
+    </p>
+    <p>
+     Link of
+     <a href="{{ media['audio']['short_url'] }}">
+      audio track
+     </a>
+     .
+    </p>
+    <p>
+     Link of
+     <a href="{{ media['thumbnail'] }}">
+      poster
+     </a>
+     .
+    </p>
+    {% if media['is_hls'] is sameas true %}
+    <p>
+     Link of
+     <a href="{{ media['hls_manifest'] }}">
+      hls manifest
+     </a>
+     .
+    </p>
+    {% elif use_dash_js == True %}
+    <p>
+     Link of
+     <a href="{{ media['mpd_manifest'] }}">
+      mpd manifest
+     </a>
+     .
+    </p>
+    {% endif %}
+   </details>
+  </details>
+  <p>
+   <a class="touch-friendly-link" href="/">
+    Back to homepage
+   </a>
+  </p>
+ </body>
+</html>

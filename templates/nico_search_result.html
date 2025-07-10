@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+ <head>
+  <meta charset="utf-8"/>
+  <title>
+   Search Result for {{ query }}
+  </title>
+  <meta content="width=device-width, initial-scale=1" name="viewport"/>
+  <style>
+   /* General body styling */
+   body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+      max-width: 800px;
+      margin: auto;
+   }
+
+   h1 {
+      color: #333;
+   }
+
+   /* Introductory text styling */
+   .intro {
+      margin-bottom: 20px;
+      font-size: 1.1em;
+      color: #555;
+   }
+
+   /* Card container styling */
+   .card-container {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+   }
+
+   /* Each card styling */
+   .card {
+      display: flex;
+      align-items: center;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      overflow: hidden;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      transition: box-shadow 0.2s;
+   }
+
+   .card:hover {
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+   }
+
+   /* Thumbnail container */
+   .thumbnail {
+      position: relative;
+      flex-shrink: 0;
+   }
+
+   /* Thumbnail image styles */
+   .thumbnail img {
+      display: block;
+      width: 128px;
+      height: auto;
+      object-fit: cover;
+   }
+
+   /* Details container styling */
+   .details {
+      margin-left: 15px;
+      flex-grow: 1;
+   }
+
+   /* Clickable title styling */
+   .details a {
+      text-decoration: none;
+      color: #007BFF;
+      font-size: 1.2em;
+      font-weight: bold;
+   }
+
+   /* Button styling */
+   .button {
+      display: inline-block;
+      padding: 10px 15px;
+      margin-top: 20px;
+      border: none;
+      border-radius: 5px;
+      background-color: #007BFF;
+      color: white;
+      text-align: center;
+      text-decoration: none;
+      font-size: 1em;
+      cursor: pointer;
+      transition: background-color 0.3s;
+   }
+
+   .button:hover {
+      background-color: #0056b3;
+   }
+
+   /* Responsive styling */
+   @media (max-width: 600px) {
+      .card {
+         flex-direction: column;
+         align-items: stretch;
+      }
+
+      .thumbnail img {
+         width: 100%;
+         height: auto;
+      }
+
+      .details {
+         margin: 10px;
+      }
+   }
+
+    .navigation {
+      display: flex;
+      margin-top: 20px;
+      gap: 10px;
+    }
+
+    .navigation-container {
+      display: flex;
+      flex-direction: column;
+    }
+  </style>
+ </head>
+ <body>
+  <h1>
+   Search Result for {{ query }}
+  </h1>
+  <div class="intro">
+   You entered
+   <i>
+    {{ query }}
+   </i>
+   to search. Got approximately {{ total_result }} results.
+  </div>
+  <div class="card-container">
+   {% for item in result_items %}
+   <div class="card">
+    <div class="thumbnail">
+     <img alt="Thumbnail for {{ item['unescaped_title'] }}" src="{{ item['thumbnail'] }}"/>
+    </div>
+    <div class="details">
+     <a href="{{ item['url'] }}">
+      {{ item['unescaped_title'] }}
+     </a>
+     <pre>View counter: {{ item['viewCounter'] }}</pre>
+    </div>
+   </div>
+   {% endfor %}
+  </div>
+  <hr/>
+  <div class="navigation-container">
+   <div class="navigation">
+    <a class="button" href="{{ next_page_url }}">
+     Next page
+    </a>
+    <a class="button" href="nicosearch">
+     Search page
+    </a>
+   </div>
+  </div>
+ </body>
+</html>

@@ -1,0 +1,163 @@
+<!DOCTYPE HTML>
+<html lang="en">
+ <head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width, initial-scale=1" name="viewport"/>
+  <title>
+   QuartTube, A Quart based, distraction free web video-on-demand frontend.
+  </title>
+  <style>
+   /* General body styling */
+   body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+      max-width: 800px;
+      margin: auto;
+   }
+
+   h1 {
+      color: #333;
+   }
+
+   /* Form styling */
+   form {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 20px;
+   }
+
+   input[type="text"],
+   input[type="number"] {
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 1em;
+   }
+
+   input[type="submit"] {
+      padding: 10px;
+      border: none;
+      border-radius: 5px;
+      background-color: #007BFF;
+      color: white;
+      font-size: 1em;
+      cursor: pointer;
+      transition: background-color 0.3s;
+   }
+
+   input[type="submit"]:hover {
+      background-color: #0056b3;
+   }
+
+   /* Link styling */
+   a {
+      text-decoration: none;
+      color: #007BFF;
+   }
+
+   a:hover {
+      text-decoration: underline;
+   }
+
+   /* Details styling */
+   details {
+      margin-top: 20px;
+   }
+  </style>
+ </head>
+ <body>
+  <h1>
+   QuartTube, A Quart based, distraction free web video-on-demand frontend.
+  </h1>
+  <p>
+   Input valid video url supported by
+   <code>
+    yt-dlp
+   </code>
+   in the form below and press Enter
+  </p>
+  <form action="view">
+   <input name="v" placeholder="Enter valid video URL" required="" type="text"/>
+   <input type="submit" value="View"/>
+  </form>
+  <br/>
+  <hr/>
+  <details>
+   <summary>
+    Available search pages
+   </summary>
+   <p>
+    Here are simple search pages for several video on demand platforms
+   </p>
+   <ul>
+    <li>
+     <p>
+      <a href="bilisearch">
+       Bilisearch
+      </a>
+      <br/>
+      <details>
+       <summary>
+        Bilisearch
+       </summary>
+       <form action="bilisearch">
+        <input name="query" placeholder="Enter your search query" required="" type="text"/>
+        <input max="100" min="1" name="pagenum" placeholder="Page number" type="number" value="1"/>
+        <input type="submit" value="Search"/>
+       </form>
+      </details>
+     </p>
+    </li>
+    <li>
+     <p>
+      <a href="nicosearch">
+       Nicosearch
+      </a>
+      <br/>
+      <details>
+       <summary>
+        Nicosearch
+       </summary>
+       <form action="nicosearch">
+        <input name="query" placeholder="Enter your search query" required="" type="text"/>
+        <input name="max_result" placeholder="Result per page" type="number" value="20"/>
+        <input type="submit" value="Search"/>
+       </form>
+      </details>
+     </p>
+    </li>
+    <li>
+     <p>
+      <a href="ytsearch">
+       Ytsearch
+      </a>
+      <br/>
+      <details>
+       <summary>
+        Ytsearch
+       </summary>
+       <form action="ytsearch">
+        <input name="query" placeholder="Enter your search query" required="" type="text"/>
+        <input type="submit" value="Search"/>
+       </form>
+      </details>
+     </p>
+    </li>
+   </ul>
+  </details>
+  <hr/>
+  <details>
+   <summary>
+    Configuration
+   </summary>
+   <p>
+    <a href="settings">
+     Go to configuration page
+    </a>
+   </p>
+  </details>
+  <hr/>
+ </body>
+</html>

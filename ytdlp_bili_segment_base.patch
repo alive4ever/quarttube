@@ -1,0 +1,20 @@
+diff --git a/yt_dlp/extractor/bilibili.py b/yt_dlp/extractor/bilibili.py
+index 0f5c2c9..b522a9a 100644
+--- a/yt_dlp/extractor/bilibili.py
++++ b/yt_dlp/extractor/bilibili.py
+@@ -85,6 +85,7 @@ def extract_formats(self, play_info):
+             'tbr': float_or_none(audio.get('bandwidth'), scale=1000),
+             'filesize': int_or_none(audio.get('size')),
+             'format_id': str_or_none(audio.get('id')),
++            'segment_base': audio.get('segment_base'),
+         } for audio in audios]
+ 
+         formats.extend({
+@@ -99,6 +100,7 @@ def extract_formats(self, play_info):
+             'tbr': float_or_none(video.get('bandwidth'), scale=1000),
+             'filesize': int_or_none(video.get('size')),
+             'quality': int_or_none(video.get('id')),
++            'segment_base': video.get('segment_base'),
+             'format_id': traverse_obj(
+                 video, (('baseUrl', 'base_url'), {self._FORMAT_ID_RE.search}, 1),
+                 ('id', {str_or_none}), get_all=False),

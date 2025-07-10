@@ -1,0 +1,100 @@
+<!DOCTYPE HTML>
+<html lang="en">
+ <head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width, initial-scale=1" name="viewport"/>
+  <title>
+   Error - {{ status }}
+  </title>
+  <style>
+   /* General body styling */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            max-width: 800px;
+            margin: auto;
+        }
+
+        h1 {
+            color: #333;
+        }
+
+        /* Error message styling */
+        .error-message {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+
+        /* Link styling */
+        a {
+            text-decoration: none;
+            color: #007BFF;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+	pre {
+	    overflow: auto;
+	}
+
+   /* Button styling */
+   .button {
+      display: inline-block;
+      padding: 10px 15px;
+      margin-top: 20px;
+      border: none;
+      border-radius: 5px;
+      background-color: #007BFF;
+      color: white;
+      text-align: center;
+      text-decoration: none;
+      font-size: 1em;
+      cursor: pointer;
+      transition: background-color 0.3s;
+   }
+
+   .button:hover {
+      background-color: #0056b3;
+   }
+  </style>
+ </head>
+ <body>
+  <h1>
+   {{ status }}
+  </h1>
+  <div class="error-message">
+   <h2>
+    {{ message }}
+   </h2>
+   {% if log_level == 'DEBUG' %}
+   <details>
+    <pre>{{ error_details }}</pre>
+   </details>
+   {% else %}
+   <p>
+    Got an unexpected error. Set
+    <code>
+     log_level
+    </code>
+    to
+    <code>
+     DEBUG
+    </code>
+    for details.
+   </p>
+   {% endif %}
+  </div>
+  <p>
+   <a class="button" href="/">
+    Back to homepage
+   </a>
+  </p>
+ </body>
+</html>

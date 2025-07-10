@@ -1,0 +1,161 @@
+<!DOCTYPE HTML>
+<html lang="en">
+ <head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width, initial-scale=1" name="viewport"/>
+  <title>
+   Configuration for QuartTube
+  </title>
+  <style>
+   /* General body styling */
+   body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+      max-width: 800px;
+      margin: auto;
+   }
+
+   h1 {
+      color: #333;
+   }
+
+   /* Table styling */
+   table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+   }
+
+   th, td {
+      padding: 10px;
+      border: 1px solid #ccc;
+      text-align: left;
+   }
+
+   th {
+      background-color: #f2f2f2;
+   }
+
+   /* Input styling */
+   input[type="text"],
+   input[type="checkbox"] {
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 1em;
+   }
+
+   input[type="submit"] {
+      padding: 10px;
+      border: none;
+      border-radius: 5px;
+      background-color: #007BFF;
+      color: white;
+      font-size: 1em;
+      cursor: pointer;
+      transition: background-color 0.3s;
+   }
+
+   input[type="submit"]:hover {
+      background-color: #0056b3;
+   }
+
+   /* Action result styling */
+   .action-result pre {
+      background-color: #000000;
+      color: #ffffff;
+      overflow: auto;
+      padding: 10px;
+      border-radius: 5px;
+   }
+
+   /* Link styling */
+   a {
+      text-decoration: none;
+      color: #007BFF;
+   }
+
+   a:hover {
+      text-decoration: underline;
+   }
+  </style>
+ </head>
+ <body>
+  <h1>
+   Configuration for QuartTube
+  </h1>
+  <p>
+   Here is the updatable config
+  </p>
+  <form action="settings" method="POST">
+   <table>
+    {% for section in cfg.sections() %}
+    <tr>
+     <th colspan="2">
+      Configuration for {{ section }}
+     </th>
+    </tr>
+    {% for setting in cfg[section].keys() %}
+    <tr>
+     <td>
+      {{ setting }}:
+     </td>
+     <td>
+      <input name="{{ setting }}" type="text" value="{{ cfg[section].get(setting) }}"/>
+     </td>
+    </tr>
+    {% endfor %}
+    <tr>
+     <td colspan="2">
+      <hr/>
+     </td>
+    </tr>
+    {% endfor %}
+   </table>
+   <input type="submit" value="Save Changes"/>
+  </form>
+  <br/>
+  <hr/>
+  <details>
+   <summary>
+    Clean up media data and session cookies
+   </summary>
+   <p>
+    This action will clean up the media storage, including session key.
+   </p>
+   <p>
+    Are you sure?
+   </p>
+   <p>
+   </p>
+   <form action="clean_up" method="POST">
+    <input name="include_session_key" type="checkbox"/>
+    Include session key
+    <input name="confirmation" type="hidden" value="okay"/>
+    <p>
+    </p>
+    <input type="submit" value="Okay"/>
+   </form>
+  </details>
+  <hr/>
+  {% with notifications = get_flashed_messages() %}
+      {% if notifications %}
+  <div class="action-result">
+   <p>
+    Action result
+   </p>
+   <p>
+   </p>
+   <pre>{{ '\n'.join(notifications) }}</pre>
+  </div>
+  <hr/>
+  {% endif %}
+  {% endwith %}
+  <p>
+   <a href="/">
+    Back to homepage
+   </a>
+  </p>
+ </body>
+</html>

@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+ <head>
+  <meta charset="utf-8"/>
+  <title>
+   YTSearch Lite
+  </title>
+  <meta content="width=device-width,initial-scale=1" name="viewport"/>
+  <style>
+   body {
+      font-family: Arial, sans-serif; /* Set a default font */
+      max-width: 800px; /* Limit the width of the content */
+      margin: auto; /* Center the content */
+      padding: 20px; /* Add padding */
+    }
+
+    h1, h2 {
+      color: #333; /* Darker color for headings */
+    }
+
+    form {
+      display: flex; /* Use flexbox for form layout */
+      gap: 10px; /* Space between input elements */
+      margin-bottom: 20px; /* Space below the form */
+    }
+
+    input[type="text"] {
+      flex-grow: 1; /* Allow the text input to grow */
+      padding: 10px; /* Add padding for comfort */
+      border: 1px solid #ccc; /* Border styling */
+      border-radius: 5px; /* Rounded corners */
+      font-size: 1em; /* Font size */
+    }
+
+    input[type="submit"] {
+      padding: 10px 15px; /* Add padding */
+      background-color: #007BFF; /* Background color */
+      color: #fff; /* Text color */
+      border: none; /* Remove border */
+      border-radius: 5px; /* Rounded corners */
+      cursor: pointer; /* Pointer cursor on hover */
+      transition: background-color 0.3s; /* Smooth transition */
+    }
+
+    input[type="submit"]:hover {
+      background-color: #0056b3; /* Darker shade on hover */
+    }
+
+    /* Touch-friendly link styling */
+    .touch-friendly-link {
+      display: inline-block; /* Make it a block element for padding */
+      padding: 10px 15px; /* Add padding for a larger clickable area */
+      background-color: #007BFF; /* Background color */
+      color: #fff; /* Text color */
+      text-decoration: none; /* Remove underline */
+      border-radius: 5px; /* Rounded corners */
+      transition: background-color 0.3s; /* Smooth transition */
+    }
+
+    .touch-friendly-link:hover,
+    .touch-friendly-link:focus {
+      background-color: #0056b3; /* Darker shade on hover/focus */
+    }
+  </style>
+ </head>
+ <body>
+  <h1>
+   YTSearch Lite
+  </h1>
+  <h2>
+   A lite interface for YT search
+  </h2>
+  <p>
+   Yet another interface for YT Search, without the bloat.
+  </p>
+  <form action="ytsearch">
+   <input name="query" placeholder="Enter your search query" required="" type="text"/>
+   <input type="submit" value="Search"/>
+  </form>
+  <hr/>
+  <p>
+   <a class="touch-friendly-link" href="/">
+    Back to homepage
+   </a>
+  </p>
+ </body>
+</html>
