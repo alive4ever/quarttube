@@ -1,0 +1,8 @@
+quart
+yt-dlp
+httpx[http2]
+uvicorn
+gunicorn
+uvicorn-worker
+watchfiles
+bbpb
