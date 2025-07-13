@@ -1063,7 +1063,7 @@ async def stream(url_part: str = ''):
             if len(manifest_orig) == 0:
                 logger.error(f'Got zero length response from {parsed_video_url.hostname}')
                 return await show_error_page('Unexpected Response', f'Got zero length response from {parsed_video_url.hostname}', 'The upstream responded with zero length response'), 404
-            transformed_manifest = get_proxied_m3u8(manifest_orig, video_url, proxify_url, req_headers )
+            transformed_manifest = await asyncio.to_thread(get_proxied_m3u8, manifest_orig, video_url, proxify_url, req_headers )
             content = transformed_manifest.encode('utf-8')
             allowed_headers = [ 'content-type' ]
             resp_hdrs_keys = list(resp_hdrs.keys())
