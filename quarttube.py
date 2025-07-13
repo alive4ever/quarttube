@@ -571,7 +571,7 @@ async def video_page():
         selected_format = hls_format
         fallback_format = default_format
     logger.debug(f"Selected format: {selected_format}, fallback format: {fallback_format}, default format: {default_format}")
-    async def get_video_info(video_url, wanted_format):
+    def get_video_info(video_url, wanted_format):
         ydl_opts = {
             'extractor_args': {
             },
@@ -615,7 +615,7 @@ async def video_page():
         yt_dlp_format = f'{selected_format}/{fallback_format}'
         video_content_info = {}
         try:
-            video_content_info = await get_video_info(video_id, yt_dlp_format)
+            video_content_info = await asyncio.to_thread(get_video_info, video_id, yt_dlp_format)
         except Exception as err:
             logger.error(f'Got an exception during metadata loading\n{err}')
             return await show_error_page('Video info extraction failed', 'Got an exception trying to extract video info', f'Unable to get video info for {video_id}.\nEither got rate limited or temporary blocked to access the service or unknown extractor backend error\nTraceback:\n{err}'), 500
