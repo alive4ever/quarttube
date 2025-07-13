@@ -1568,21 +1568,21 @@ async def get_vtt_from_video_id():
         lang = sub_lang
     params = generate_caption_params(yt_video_id, lang)
     json_resp = await post_subtitle_request(params)
-    caption_data = extract_caption_segments_from_json(json.loads(json_resp.decode()))
+    caption_data = await asyncio.to_thread(extract_caption_segments_from_json, json.loads(json_resp.decode()))
     continuation = test_continuation(caption_data)
     if continuation:
         logger.warning('Got continuation response, retrying')
         new_json_resp = await post_subtitle_request(continuation)
-        new_caption_data = extract_caption_segments_from_json(json.loads(new_json_resp.decode()))
+        new_caption_data = await asyncio.to_thread(extract_caption_segments_from_json, json.loads(new_json_resp.decode()))
         continuation_new = test_continuation(new_caption_data)
         if continuation_new:
             logger.error(f'Got another continuation: {continuation_new}')
             return ''
         else:
             logger.debug('Got vtt after continuation retry')
-            webvtt_raw = webvtt_from_caption_data(new_caption_data)
+            webvtt_raw = await asyncio.to_thread(webvtt_from_caption_data, new_caption_data)
     else:
-        webvtt_raw = webvtt_from_caption_data(caption_data)
+        webvtt_raw = await asyncio.to_thread(webvtt_from_caption_data, caption_data)
     webvtt = Markup(webvtt_raw).unescape()
     return webvtt, 200, {'Content-Type': 'text/vtt' }
 
