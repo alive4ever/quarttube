@@ -146,7 +146,7 @@ def get_base_url(url):
     base_url = f"{parsed_url.scheme}://{parsed_url.hostname}{os.path.dirname(parsed_url.path)}"
     return base_url
 
-def get_proxied_m3u8(playlist, playlist_url, proxy_function, headers: dict = {}):
+async def get_proxied_m3u8(playlist, playlist_url, proxy_function, headers: dict = {}):
     base_url = get_base_url(playlist_url)
     url_pattern = re.compile(r'(?m)URI="([^"]+?)"')
     new_lines = []
@@ -420,7 +420,7 @@ async def post_subtitle_request(params):
     await resp.aclose()
     return content
 
-def extract_caption_segments_from_json(subtitle_data: {}, sub_lang: str = 'en'):
+async def extract_caption_segments_from_json(subtitle_data: {}, sub_lang: str = 'en'):
     body_part = find_by_key(subtitle_data['actions'][0], 'body')
     vtt_body = find_by_key(body_part, 'initialSegments')
     continuation_param = None
@@ -452,7 +452,7 @@ def convert_milliseconds_to_hhmmss_optimized(ms):
     seconds = total_seconds % 60
     return f"{hours:02}:{minutes:02}:{seconds:02}.{milliseconds:03}"
 
-def webvtt_from_caption_data(caption_data: dict = {}):
+async def webvtt_from_caption_data(caption_data: dict = {}):
     if not caption_data:
         return None
     vtt_body = caption_data.get('caption_segments')
@@ -1063,7 +1063,7 @@ async def stream(url_part: str = ''):
             if len(manifest_orig) == 0:
                 logger.error(f'Got zero length response from {parsed_video_url.hostname}')
                 return await show_error_page('Unexpected Response', f'Got zero length response from {parsed_video_url.hostname}', 'The upstream responded with zero length response'), 404
-            transformed_manifest = await asyncio.to_thread(get_proxied_m3u8, manifest_orig, video_url, proxify_url, req_headers )
+            transformed_manifest = await get_proxied_m3u8(manifest_orig, video_url, proxify_url, req_headers )
             content = transformed_manifest.encode('utf-8')
             allowed_headers = [ 'content-type' ]
             resp_hdrs_keys = list(resp_hdrs.keys())
@@ -1568,21 +1568,21 @@ async def get_vtt_from_video_id():
         lang = sub_lang
     params = generate_caption_params(yt_video_id, lang)
     json_resp = await post_subtitle_request(params)
-    caption_data = await asyncio.to_thread(extract_caption_segments_from_json, json.loads(json_resp.decode()))
+    caption_data = await extract_caption_segments_from_json(json.loads(json_resp.decode()))
     continuation = test_continuation(caption_data)
     if continuation:
         logger.warning('Got continuation response, retrying')
         new_json_resp = await post_subtitle_request(continuation)
-        new_caption_data = await asyncio.to_thread(extract_caption_segments_from_json, json.loads(new_json_resp.decode()))
+        new_caption_data = await extract_caption_segments_from_json(json.loads(new_json_resp.decode()))
         continuation_new = test_continuation(new_caption_data)
         if continuation_new:
             logger.error(f'Got another continuation: {continuation_new}')
             return ''
         else:
             logger.debug('Got vtt after continuation retry')
-            webvtt_raw = await asyncio.to_thread(webvtt_from_caption_data, new_caption_data)
+            webvtt_raw = await webvtt_from_caption_data(new_caption_data)
     else:
-        webvtt_raw = await asyncio.to_thread(webvtt_from_caption_data, caption_data)
+        webvtt_raw = await webvtt_from_caption_data(caption_data)
     webvtt = Markup(webvtt_raw).unescape()
     return webvtt, 200, {'Content-Type': 'text/vtt' }
 
