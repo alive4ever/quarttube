@@ -291,6 +291,158 @@ def normalize_headers(headers):
 
 desktop_headers = normalize_headers(desktop_headers_dict)
 async_client = httpx.AsyncClient(headers=desktop_headers, http2=True, follow_redirects=True, cookies=cookiejar)
+appended_headers = { 'Access-Control-Allow-Origin': '*',
+                "Access-Control-Allow-Methods": "*",
+                "Accept-Ranges": "bytes",
+                        }
+
+def normalize_url(url):
+    missing_slash_re = re.compile(r'(https?:/)(\w)')
+    missing_slash = re.search(missing_slash_re, url)
+    if missing_slash:
+        logger.debug("Fixing missing slash in the url")
+        normalized_url = re.sub(missing_slash_re, r'\1/\2', url)
+        return normalized_url
+    else:
+        return url
+
+async def head(url, session_client=async_client, headers={}):
+    if headers:
+        req_headers = headers
+    else:
+        req_headers = desktop_headers
+    server_response = await session_client.request('HEAD', url, headers=req_headers)
+    status_code = server_response.status_code
+    try:
+        server_response.raise_for_status()
+    except Exception as err:
+        logger.error(f'Got non 200 http response doing head\n{err}')
+        return status_code, {}
+    await server_response.aclose()
+    return status_code, server_response.headers
+
+async def streaming(url, session_client=async_client, headers={}):
+    parsed_url = urllib.parse.urlparse(url)
+    logger.debug(f"Streaming response for {parsed_url.hostname}")
+    async with session_client.stream('GET', url, headers=headers) as resp:
+        resp.raise_for_status()
+        status_code = resp.status_code
+        server_headers = resp.headers
+        async for chunk in resp.aiter_bytes(128*1024):
+            if chunk:
+                yield chunk
+
+async def get_content_length(url, session_client=async_client, headers={}):
+    if headers:
+        req_headers = desktop_headers
+    else:
+        req_headers = headers
+    resp_status, resp_headers = await head(url, session_client, headers=req_headers)
+    length = resp_headers.get('Content-Length', 0)
+    return length
+
+async def streaming_with_retries(url, session_client=async_client, headers={}):
+    parsed_url = urllib.parse.urlparse(url)
+    logger.debug(f"Streaming with retries for {parsed_url.hostname}")
+    downloaded_bytes = 0
+    max_retries = 5
+    retry_delay = 1
+    content_length = await get_content_length(url, session_client, headers)
+    if not isinstance(content_length, int):
+        content_length = int(content_length)
+    retries = 0
+    range_header = [ v for k, v in headers.items() if k.lower() == 'range' ]
+    if range_header:
+        logger.debug('Range request detected')
+        range_header_value = range_header.split('=')[-1]
+        start_byte = int(range_header_value.split('-')[0])
+        end_byte = range_header_value.split('-')[1] or content_length
+        if not isinstance(end_byte, int):
+            end_byte = int(end_byte)
+        downloaded_bytes = start_byte
+
+    if content_length > 0:
+        while retries <= max_retries and downloaded_bytes < content_length:
+            if retries > 0 and content_length > 0 and downloaded_bytes < content_length:
+                logger.info(f"Retrying num: {retries} at {downloaded_bytes} of {content_length}")
+                if downloaded_bytes >= content_length:
+                    break
+
+            if range_header:
+                logger.debug(f'Serving range of {start_byte} to {end_byte}')
+                if downloaded_bytes >= end_byte:
+                    logger.debug("Serving range completed")
+                    break
+            try:
+                async with session_client.stream('GET', url, headers=headers) as r:
+                    r.raise_for_status()
+                    status_code = r.status_code
+                    server_headers = r.headers
+                    if range_header and not server_headers.get('Content-Range'):
+                        server_headers['Content-Range'] = f"bytes {start_byte}-{end_byte}/{content_length}"
+
+                    async for chunk in r.aiter_bytes(128*1024):
+                        if chunk:
+                            downloaded_bytes += len(chunk)
+                            yield chunk
+                    retries = 0
+                    if content_length > 0 and downloaded_bytes >= content_length:
+                        break
+
+            except (httpx.HTTPStatusError, httpx.NetworkError, httpx.RequestError, httpx.RemoteProtocolError, httpx.ReadTimeout) as e:
+                if content_length > 0 and downloaded_bytes < content_length:
+                    retries += 1
+                    logger.warning(f'An error occurred at {downloaded_bytes}')
+                    await asyncio.sleep(retry_delay)
+                else:
+                    break
+            except Exception as err:
+                status_code = 500
+                logger.error(f'An unexpected error occured\n{err}')
+                break
+
+async def non_streaming(url, session_client=async_client, headers={}):
+    parsed_url = urllib.parse.urlparse(url)
+    logger.debug(f"Performing non streaming request for {parsed_url.hostname}")
+    range_header = [ v for k, v in headers.items() if k.lower() == 'range' ]
+    if range_header:
+        range_value = range_header[0].split('=')[-1]
+        start_byte, end_byte = range_value.split('-')
+        if not end_byte:
+            end_byte = await get_content_length(url, session_client, headers)
+        logger.debug(f"Serving range request from {start_byte} to {end_byte} for {parsed_url.hostname}")
+    headers_orig = headers
+    try:
+        resp = await session_client.get(url, headers=headers)
+        resp.raise_for_status()
+    except Exception as err:
+        logger.error(f'Got non 200 status for {parsed_url.hostname}\n{err}')
+        return await show_error_page('Request error', 'Got non successful response from upstream', f'Traceback:\n{err}'), 500
+    content = await resp.aread()
+    status_code = resp.status_code
+    content_type = resp.headers.get('Content-Type')
+    resp_hdrs = dict(resp.headers)
+    resp_hdrs.update(appended_headers)
+    hls_endings = ['m3u8', 'm3u']
+    is_hls = parsed_url.path.split('.')[-1] in hls_endings
+    if is_hls and content_type.lower().endswith('mpegurl'):
+        logger.debug(f"Performing m3u8 proxying for {parsed_url.hostname}")
+        manifest_orig = content.decode('utf-8')
+        if len(manifest_orig) == 0:
+            logger.error(f'Got zero length response from {parsed_url.hostname}')
+            return await show_error_page('Unexpected Response', f'Got zero length response from {parsed_url.hostname}', 'The upstream responded with zero length response'), 404
+        transformed_manifest = await get_proxied_m3u8(manifest_orig, url, proxify_url, headers )
+        content = transformed_manifest.encode('utf-8')
+        allowed_headers = [ 'content-type' ]
+        resp_hdrs_keys = list(resp_hdrs.keys())
+        for k in resp_hdrs_keys:
+            if k.lower() not in allowed_headers:
+                resp_hdrs.pop(k)
+        resp_hdrs['Content-Length'] = int(len(content))
+        resp_hdrs['Content-Disposition'] = 'inline'
+    await resp.aclose()
+    return content, status_code, resp_hdrs
+
 
 def get_period_mpd(seconds):
     if not isinstance(seconds, int):
@@ -873,15 +1025,6 @@ async def stream(url_part: str = ''):
         logger.debug(f"req_headers is {req_headers}")
         qs_dict.pop('headers')
     qs = urllib.parse.urlencode(qs_dict)
-    missing_slash_re = re.compile(r'(https?:/)(\w)')
-    def normalize_url(url):
-        missing_slash = re.search(missing_slash_re, url)
-        if missing_slash:
-            logger.debug("Fixing missing slash in the url")
-            normalized_url = re.sub(missing_slash_re, r'\1/\2', url)
-            return normalized_url
-        else:
-            return url
     if url_part:
         parsed_url_part = urllib.parse.urlparse(url_part)
         url_part_path = parsed_url_part.path
@@ -937,19 +1080,9 @@ async def stream(url_part: str = ''):
         session_client = httpx.AsyncClient(headers=client_headers, follow_redirects=True, http2=True)
     else:
         session_client = httpx.AsyncClient(headers=client_headers, follow_redirects=True, http2=True, cookies=cookies)
-    async def head(url):
-        server_response = await session_client.request('HEAD', video_url)
-        status_code = server_response.status_code
-        try:
-            server_response.raise_for_status()
-        except Exception as err:
-            logger.error(f'Got non 200 http response doing head\n{err}')
-            return status_code, {}
-        await server_response.aclose()
-        return status_code, server_response.headers
 
     if request.method == 'HEAD':
-        status_code, server_headers = await head(video_url)
+        status_code, server_headers = await head(video_url, session_client, client_headers)
         return '', status_code, server_headers 
 
     if range_header:
@@ -959,137 +1092,23 @@ async def stream(url_part: str = ''):
     video = domain in video_hosts
     gvs_server = yt_request
     server_headers = {}
-    appended_headers = { 'Access-Control-Allow-Origin': '*',
-                    "Access-Control-Allow-Methods": "*",
-                    "Accept-Ranges": "bytes",
-                            }
     status_code = None
-    async def streaming():
-        logger.debug(f"Streaming response for {parsed_video_url.hostname}")
-        async with session_client.stream('GET', video_url, headers=client_headers) as resp:
-            resp.raise_for_status()
-            status_code = resp.status_code
-            server_headers = resp.headers
-            async for chunk in resp.aiter_bytes(128*1024):
-                if chunk:
-                    yield chunk
-
-    async def get_content_length(url):
-        status, headers = await head(url)
-        length = headers.get('Content-Length', 0)
-        return length
-
-    async def streaming_with_retries():
-        logger.debug(f"Streaming with retries for {parsed_video_url.hostname}")
-        downloaded_bytes = 0
-        max_retries = 5
-        retry_delay = 1
-        content_length = await get_content_length(video_url)
-        if not isinstance(content_length, int):
-            content_length = int(content_length)
-        retries = 0
-        if range_header:
-            logger.debug('Range request detected')
-            range_header_value = range_header.split('=')[-1]
-            start_byte = int(range_header_value.split('-')[0])
-            end_byte = range_header_value.split('-')[1] or content_length
-            if not isinstance(end_byte, int):
-                end_byte = int(end_byte)
-            downloaded_bytes = start_byte
-
-        if content_length > 0:
-            while retries <= max_retries and downloaded_bytes < content_length:
-                if retries > 0 and content_length > 0 and downloaded_bytes < content_length:
-                    logger.info(f"Retrying num: {retries} at {downloaded_bytes} of {content_length}")
-                    if downloaded_bytes >= content_length:
-                        return
-
-                if range_header: 
-                    logger.debug(f'Serving range of {start_byte} to {end_byte}')
-                    if downloaded_bytes >= end_byte:
-                        logger.debug("Serving range completed")
-                        return
-                try:
-                    async with session_client.stream('GET', video_url, headers=client_headers) as r:
-                        r.raise_for_status()
-                        status_code = r.status_code
-                        server_headers = r.headers
-                        if range_header and not server_headers.get('Content-Range'):
-                            server_headers['Content-Range'] = f"bytes {start_byte}-{end_byte}/{content_length}"
-
-                        async for chunk in r.aiter_bytes(128*1024):
-                            if chunk:
-                                downloaded_bytes += len(chunk)
-                                yield chunk
-                        retries = 0
-                        if content_length > 0 and downloaded_bytes >= content_length:
-                            return
-
-                except (httpx.HTTPStatusError, httpx.NetworkError, httpx.RequestError, httpx.RemoteProtocolError, httpx.ReadTimeout) as e:
-                    if content_length > 0 and downloaded_bytes < content_length:
-                        retries += 1
-                        logger.warning(f'An error occurred at {downloaded_bytes}')
-                        await asyncio.sleep(retry_delay)
-                    else:
-                        break
-                except Exception as err:
-                    status_code = 500
-                    logger.error(f'An unexpected error occured\n{err}')
-                    break
-
-    async def non_streaming():
-        logger.debug(f"Performing non streaming request for {video_url}")
-        if range_header:
-            range_value = range_header.split('=')[-1]
-            start_byte, end_byte = range_value.split('-')
-            if not end_byte:
-                end_byte = await get_content_length(video_url)
-            logger.debug(f"Serving range request from {start_byte} to {end_byte} for {parsed_video_url.hostname}")
-        client_headers_orig = client_headers
-        try:
-            resp = await session_client.get(video_url, headers=client_headers)
-            resp.raise_for_status()
-        except Exception as err:
-            logger.error(f'Got non 200 status for {parsed_video_url.hostname}\n{err}')
-            return await show_error_page('Request error', 'Got non successful response from upstream', f'Traceback:\n{err}'), 500
-        content = await resp.aread()
-        status_code = resp.status_code
-        content_type = resp.headers.get('Content-Type')
-        resp_hdrs = dict(resp.headers)
-        resp_hdrs.update(appended_headers)
-        if is_hls and content_type.lower().endswith('mpegurl'):
-            logger.debug(f"Performing m3u8 proxying for {parsed_video_url.hostname}")
-            manifest_orig = content.decode('utf-8')
-            if len(manifest_orig) == 0:
-                logger.error(f'Got zero length response from {parsed_video_url.hostname}')
-                return await show_error_page('Unexpected Response', f'Got zero length response from {parsed_video_url.hostname}', 'The upstream responded with zero length response'), 404
-            transformed_manifest = await get_proxied_m3u8(manifest_orig, video_url, proxify_url, req_headers )
-            content = transformed_manifest.encode('utf-8')
-            allowed_headers = [ 'content-type' ]
-            resp_hdrs_keys = list(resp_hdrs.keys())
-            for k in resp_hdrs_keys:
-                if k.lower() not in allowed_headers:
-                    resp_hdrs.pop(k)
-            resp_hdrs['Content-Length'] = int(len(content))
-            resp_hdrs['Content-Disposition'] = 'inline'
-        await resp.aclose()
-        return content, status_code, resp_hdrs
 
     if video and not is_hls:
         if range_header:
-            my_resp = await non_streaming()
+            my_resp = await non_streaming(video_url, session_client, client_headers)
             server_headers.update(appended_headers)
             return my_resp
         elif gvs_server and not range_header:
-            my_resp = await make_response(streaming())
+            my_resp = await make_response(streaming(video_url, session_client, client_headers))
         else:
-            my_resp = await make_response(streaming_with_retries())
+            my_resp = await make_response(streaming_with_retries(video_url, session_client, client_headers))
         server_headers.update(appended_headers)
         my_resp.headers = server_headers
         my_resp.timeout = None
         return my_resp
     else:
-        return await non_streaming()
+        return await non_streaming(video_url, session_client, client_headers)
 
 @app.route('/bilisearch')
 async def bilisearch():
