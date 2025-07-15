@@ -443,6 +443,29 @@ async def non_streaming(url, session_client=async_client, headers={}):
     await resp.aclose()
     return content, status_code, resp_hdrs
 
+#Video info extraction
+def get_video_info(video_url, wanted_format):
+    ydl_opts = {
+        'extractor_args': {
+        },
+        'quiet': True,
+        'format': wanted_format,
+        'cookies': 'data/cookies.txt',
+    }
+
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        info = ydl.extract_info(video_url, download=False)
+        video_info = {
+            'formats': info.get('formats'),
+            'subtitles': info.get('subtitles'),
+            'requested_formats': info.get('requested_formats'),
+            'thumbnail': info.get('thumbnail'),
+            'title': Markup(info.get('title', 'No title available')).unescape(),
+            'description': Markup(info.get('description', 'No description available')).unescape(),
+            'duration': info.get('duration'),
+            'duration_string': info.get('duration_string'),
+        }
+        return video_info
 
 def get_period_mpd(seconds):
     if not isinstance(seconds, int):
@@ -723,28 +746,6 @@ async def video_page():
         selected_format = hls_format
         fallback_format = default_format
     logger.debug(f"Selected format: {selected_format}, fallback format: {fallback_format}, default format: {default_format}")
-    def get_video_info(video_url, wanted_format):
-        ydl_opts = {
-            'extractor_args': {
-            },
-            'quiet': True,
-            'format': wanted_format,
-            'cookies': 'data/cookies.txt',
-        }
-        
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(video_url, download=False)
-            video_info = {
-                'formats': info.get('formats'),
-                'subtitles': info.get('subtitles'),
-                'requested_formats': info.get('requested_formats'),
-                'thumbnail': info.get('thumbnail'),
-                'title': Markup(info.get('title', 'No title available')).unescape(),
-                'description': Markup(info.get('description', 'No description available')).unescape(),
-                'duration': info.get('duration'),
-                'duration_string': info.get('duration_string'),
-            }
-            return video_info
 
     support_hls = [ 'nicovideo.jp', 'youtube.com', 'youtu.be' ]
     if video_domain in support_hls:
