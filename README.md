@@ -64,6 +64,9 @@ cd ..
 # Optional dependency
 pip install mediaflow-proxy
 
+# Recommended dependency, for faster YT video info extraction
+pip install git+https://github.com/alive4ever/yt-dlp-YTNSigDukpy.git
+
 ```
 
 ---
@@ -71,10 +74,14 @@ pip install mediaflow-proxy
 ## Running
 
 ```bash
+# Load virtual environment
+. ~/venv/bin/activate
 # Using uvicorn
 uvicorn --reload --reload-include 'data/settings.ini' --host localhost --port 5000 quarttube:app
 # Using gunicorn
 gunicorn --reload-extra-file 'data/settings.ini' --reload -k uvicorn_worker.UvicornWorker -b localhost:5000 quarttube:app
+# Using hypercorn + watchfiles
+watchfiles 'hypercorn -b localhost:5000 quarttube:app' 'data/settings.ini'
 
 ```
 
