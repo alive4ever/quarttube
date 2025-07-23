@@ -63,6 +63,17 @@
       object-fit: cover;
    }
 
+    .thumbnail .duration {
+      position: absolute;
+      bottom: 5px;
+      right: 5px;
+      background-color: rgba(0, 0, 0, 0.7);
+      color: #fff;
+      padding: 2px 5px;
+      font-size: 0.8em;
+      border-radius: 3px;
+    }
+
    /* Details container styling */
    .details {
       margin-left: 15px;
@@ -142,6 +153,9 @@
    <div class="card">
     <div class="thumbnail">
      <img alt="Thumbnail for {{ item['unescaped_title'] }}" src="{{ item['thumbnail'] }}"/>
+     <div class="duration">
+      {{ item['duration'] }}
+     </div>
     </div>
     <div class="details">
      <a href="{{ item['url'] }}">
