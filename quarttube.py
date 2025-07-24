@@ -1236,7 +1236,7 @@ async def get_result():
         item['url'] = routed_url
         if item.get('lengthSeconds'):
             item['duration'] = get_period_text(item['lengthSeconds'])
-        item['thumbnail'] = localize_url(item['thumbnailUrl'] )
+        item['thumbnail'] = localize_url(item['thumbnailUrl']+'.M')
     next_page_qs = urllib.parse.urlencode(
             { 'query': query_string,
               'offset': offset_query + result_per_page,
