@@ -1148,10 +1148,11 @@ async def bilisearch():
     search_data = []
     for item in result:
         if item.get('pic'):
+            scaled_resolution_param = '@672w_378h_1c_!web-search-common-cover.webp'
             if not item['pic'].startswith('http'):
-                thumbnail_url = f"https:{item['pic']}"
+                thumbnail_url = f"https:{item['pic']}{scaled_resolution_param}"
             else:
-                thumbnail_url = item['pic']
+                thumbnail_url = f"item['pic']{scaled_resolution_param}"
             thumbnail = localize_url(thumbnail_url)
         else:
             thumbnail = url_for('static', filename='owl.webp')
