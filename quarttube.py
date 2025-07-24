@@ -1329,7 +1329,10 @@ async def ytsearch():
                                     thumbnail_url = item['thumbnail']['thumbnails'][-1]['url']
                                     data['thumbnail'] = localize_url(thumbnail_url)
                                     data['length'] = item['lengthText']['simpleText']
-                                    data['view_count'] = item['viewCountText']['simpleText']
+                                    if item.get('viewCountText'):
+                                        data['view_count'] = item['viewCountText']['simpleText']
+                                    else:
+                                        data['view_count'] = 'unknown'
                                     search_data.append(data)
                         search_result = {}
                         search_result['query'] = search_query_raw
