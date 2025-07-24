@@ -1,5 +1,5 @@
 diff --git a/yt_dlp/extractor/bilibili.py b/yt_dlp/extractor/bilibili.py
-index 0f5c2c9..b522a9a 100644
+index d00ac63..f6441db 100644
 --- a/yt_dlp/extractor/bilibili.py
 +++ b/yt_dlp/extractor/bilibili.py
 @@ -85,6 +85,7 @@ def extract_formats(self, play_info):
@@ -18,3 +18,29 @@ index 0f5c2c9..b522a9a 100644
              'format_id': traverse_obj(
                  video, (('baseUrl', 'base_url'), {self._FORMAT_ID_RE.search}, 1),
                  ('id', {str_or_none}), get_all=False),
+@@ -2101,6 +2103,8 @@ def _get_formats(self, *, ep_id=None, aid=None):
+                 'acodec': 'none',
+                 'vcodec': video_res.get('codecs'),
+                 'filesize': video_res.get('size'),
++                'segment_base': { 'index_range': traverse_obj(video_res, ('segment_base', 'index_range')),
++                                 'initialization': traverse_obj(video_res, ('segment_base', 'range')), }
+             })
+         for aud in video_json.get('audio_resource') or []:
+             if not aud.get('url'):
+@@ -2112,6 +2116,8 @@ def _get_formats(self, *, ep_id=None, aid=None):
+                 'acodec': aud.get('codecs'),
+                 'vcodec': 'none',
+                 'filesize': aud.get('size'),
++                'segment_base': { 'index_range': traverse_obj(aud, ('segment_base', 'index_range')),
++                                 'initialization': traverse_obj(aud, ('segment_base', 'range'))}
+             })
+ 
+         return formats
+@@ -2122,6 +2128,7 @@ def _parse_video_metadata(self, video_data):
+             'description': video_data.get('desc'),
+             'thumbnail': video_data.get('cover'),
+             'timestamp': unified_timestamp(video_data.get('formatted_pub_date')),
++            'duration': video_data.get('duration'),
+             'episode_number': int_or_none(self._search_regex(
+                 r'^E(\d+)(?:$| - )', video_data.get('title_display') or '', 'episode number', default=None)),
+         }
