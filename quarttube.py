@@ -328,7 +328,7 @@ async def streaming(url, session_client=async_client, headers={}):
         resp.raise_for_status()
         status_code = resp.status_code
         server_headers = resp.headers
-        async for chunk in resp.aiter_bytes(128*1024):
+        async for chunk in resp.aiter_bytes(32*1024):
             if chunk:
                 yield chunk
 
@@ -381,7 +381,7 @@ async def streaming_with_retries(url, session_client=async_client, headers={}):
                     if range_header and not server_headers.get('Content-Range'):
                         server_headers['Content-Range'] = f"bytes {start_byte}-{end_byte}/{content_length}"
 
-                    async for chunk in r.aiter_bytes(128*1024):
+                    async for chunk in r.aiter_bytes(32*1024):
                         if chunk:
                             downloaded_bytes += len(chunk)
                             yield chunk
