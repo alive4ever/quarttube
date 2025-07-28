@@ -1055,7 +1055,7 @@ async def stream(url_part: str = ''):
         video_url = media_url
         logger.debug(f'{video_url}')
     parsed_video_url = urllib.parse.urlparse(video_url)
-    allowed_hosts = [ 'googlevideo.com', 'ytimg.com', 'akamaized.net', 'bstarstatic.com', 'hdslb.com', 'nicovideo.jp', 'nimg.jp' ]
+    allowed_hosts = [ 'googlevideo.com', 'ytimg.com', 'akamaized.net', 'bilivideo.com', 'bstarstatic.com', 'hdslb.com', 'nicovideo.jp', 'nimg.jp' ]
     if show_subtitle:
         allowed_hosts.append('youtube.com')
     hostname_part = parsed_video_url.hostname.split('.')
@@ -1618,7 +1618,7 @@ async def proxy(path):
     url = f'{mediaflow_instance}/proxy/{path}'
     if request.query_string:
         url += f'?{request.query_string.decode()}'
-    allowed_hosts = [ 'googlevideo.com', 'ytimg.com', 'akamaized.net', 'bstarstatic.com', 'hdslb.com', 'nicovideo.jp', 'nimg.jp' ]
+    allowed_hosts = [ 'googlevideo.com', 'ytimg.com', 'akamaized.net', 'bilivideo.com', 'bstarstatic.com', 'hdslb.com', 'nicovideo.jp', 'nimg.jp' ]
     destination_url = request.args.get('d')
     if destination_url:
         hostname = urllib.parse.urlparse(urllib.parse.unquote(destination_url)).hostname
