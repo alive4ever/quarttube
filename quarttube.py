@@ -1329,9 +1329,12 @@ async def ytsearch():
                                     data['title'] = item['title']['runs'][0]['text']
                                     thumbnail_url = item['thumbnail']['thumbnails'][-1]['url']
                                     data['thumbnail'] = localize_url(thumbnail_url)
-                                    data['length'] = item['lengthText']['simpleText']
+                                    if item.get('lengthText'):
+                                        data['length'] = item['lengthText'].get('simpleText', 'unknown')
+                                    else:
+                                        data['length'] = '0:00'
                                     if item.get('viewCountText'):
-                                        data['view_count'] = item['viewCountText']['simpleText']
+                                        data['view_count'] = item['viewCountText'].get('simpleText', 'unknown')
                                     else:
                                         data['view_count'] = 'unknown'
                                     search_data.append(data)
