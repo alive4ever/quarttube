@@ -1253,7 +1253,10 @@ async def ytsearch():
     search_query_raw = request.args.get('query')
     if not search_query_raw:
         return await render_template('ytsearch.html')
-    search_query = urllib.parse.quote_plus(search_query_raw)
+    if request.method == 'GET':
+        search_query = urllib.parse.quote_plus(search_query_raw)
+    else:
+        search_query = search_query_raw
     query = { 'search_query': search_query }
     query_encoded = urllib.parse.urlencode(query)
     youtube = 'https://www.youtube.com'
@@ -1273,13 +1276,17 @@ async def ytsearch():
         cookiejar.save()
     await asyncio.sleep(1)
     await home_resp.aclose()
+    ytcfg = await get_ytcfg()
+    yt_search_api = f"{youtube}/youtubei/v1/search?{ytcfg['INNERTUBE_API_KEY']}"
     async def get_result():
         max_retries = 3
         retry = 0
         while retry <= max_retries:
             referer_hdr = { 'Referer': youtube }
             if not is_next_page:
-                resp = await async_client.get(search_page, headers=referer_hdr)
+                search_payload = { 'context': ytcfg['INNERTUBE_CONTEXT'],
+                                   'query': search_query }
+                resp = await async_client.post(yt_search_api, headers=referer_hdr, json=search_payload)
                 if resp.cookies:
                     logger.info(f"Saving updated cookies from {youtube} (next page)")
                     cookiejar.save()
@@ -1290,22 +1297,14 @@ async def ytsearch():
                     await asyncio.sleep(1)
                     await resp.aclose()
                     return Response("<p>Got non 200 status code from YT</p>")
-                initial_data_re = r'ytInitialData\s*=\s*(\{[\S\s]+?\})\s*;'
-                initial_data_match = re.search(re.compile(initial_data_re), resp.text)
-                if initial_data_match:
-                    logger.debug(f'Got initial data {len(initial_data_match.group(1))}')
-                    initial_data = json.loads(initial_data_match.group(1))
-                    logger.debug(f"{initial_data.keys()}")
-                    debug = request.args.get('debug')
-                    if debug:
-                        with open('debug.json', 'w') as file:
-                            logger.debug('Writing response initialData to file')
-                            json.dump(initial_data, file, indent=2)
-                    await resp.aclose()
-                else:
-                    logger.error('Unable to find ytInitialData')
-                    retry += 1
-                    await asyncio.sleep(3)
+                initial_data_json = await resp.aread()
+                await resp.aclose()
+                initial_data = json.loads(initial_data_json.decode())
+                debug = request.args.get('debug')
+                if debug:
+                    with open(os.path.join('data','search_debug.json'), 'w') as file:
+                        logger.debug('Writing search response initialData to file')
+                        json.dump(initial_data, file, indent=2)
                 if initial_data.get('estimatedResults'):
                     logger.debug(f"About {initial_data['estimatedResults']}")
                     contents = initial_data['contents']['twoColumnSearchResultsRenderer']['primaryContents']['sectionListRenderer']['contents'][0]['itemSectionRenderer']['contents']
@@ -1344,7 +1343,10 @@ async def ytsearch():
                                     search_data.append(data)
                         search_result = {}
                         search_result['query'] = search_query_raw
-                        next_data = urllib.parse.urlencode({'query': search_query, 'next': True})
+                        next_data_dict = {'query': search_query, 'next': True}
+                        if debug:
+                            next_data_dict['debug'] = debug
+                        next_data = urllib.parse.urlencode(next_data_dict)
                         search_result['next_page_url'] = f"ytsearch?{next_data}"
                         search_result['estimatedResults'] = initial_data['estimatedResults']
                         search_result['contents'] = search_data
@@ -1358,11 +1360,9 @@ async def ytsearch():
                     await asyncio.sleep(3)
             else:
                 # This is to get continuation page.
-                ytcfg = await get_ytcfg()
                 ctoken = form_data.get('ctoken')
                 payload = { 'context': ytcfg['INNERTUBE_CONTEXT'] , 'continuation': ctoken }
-                api_endpoint = f"{youtube}/youtubei/v1/search?key={ytcfg['INNERTUBE_API_KEY']}"
-                resp = await async_client.post(api_endpoint, json=payload, headers=referer_hdr)
+                resp = await async_client.post(yt_search_api, json=payload, headers=referer_hdr)
                 try:
                     resp.raise_for_status()
                 except Exception as err:
@@ -1372,8 +1372,8 @@ async def ytsearch():
                     return Response(json.dumps(response_payload, indent=2), content_type="application/json")
                 next_page_data = resp.json()
                 if request.args.get('debug'):
-                    with open('next_debug.json', 'w') as file:
-                        logger.debug('Dumping next page json')
+                    with open(os.path.join('data','next_debug.json'), 'w') as file:
+                        logger.debug('Dumping search next page json')
                         json.dump(next_page_data, file)
 
                 next_contents = next_page_data['onResponseReceivedCommands'][0]['appendContinuationItemsAction']['continuationItems']
@@ -1414,7 +1414,10 @@ async def ytsearch():
                                 search_data.append(data)
                     search_result = {}
                     search_result['query'] = search_query_raw
-                    next_data = urllib.parse.urlencode({'query': search_query, 'next': True})
+                    next_data_dict = {'query': search_query, 'next': True}
+                    if debug:
+                        next_data_dict['debug'] = debug
+                    next_data = urllib.parse.urlencode(next_data_dict)
                     search_result['next_page_url'] = f"ytsearch?{next_data}"
                     search_result['estimatedResults'] = next_page_data['estimatedResults']
                     search_result['contents'] = search_data
