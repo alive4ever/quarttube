@@ -448,10 +448,14 @@ def get_video_info(video_url, wanted_format):
     ydl_opts = {
         'extractor_args': {
         },
-        'quiet': True,
         'format': wanted_format,
         'cookies': 'data/cookies.txt',
     }
+
+    if log_level == 'DEBUG':
+        ydl_opts.update({'verbose': True})
+    elif log_level == 'ERROR':
+        ydl_opts.update({'quiet': True})
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(video_url, download=False)
