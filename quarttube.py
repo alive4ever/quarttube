@@ -1278,6 +1278,7 @@ async def ytsearch():
     await home_resp.aclose()
     ytcfg = await get_ytcfg()
     yt_search_api = f"{youtube}/youtubei/v1/search?{ytcfg['INNERTUBE_API_KEY']}"
+    debug = request.args.get('debug')
     async def get_result():
         max_retries = 3
         retry = 0
@@ -1300,7 +1301,6 @@ async def ytsearch():
                 initial_data_json = await resp.aread()
                 await resp.aclose()
                 initial_data = json.loads(initial_data_json.decode())
-                debug = request.args.get('debug')
                 if debug:
                     with open(os.path.join('data','search_debug.json'), 'w') as file:
                         logger.debug('Writing search response initialData to file')
