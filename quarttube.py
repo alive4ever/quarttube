@@ -698,6 +698,28 @@ except Exception as err:
 # Initialize media data storage
 media_json_storage = JSONStorage('data/media_storage.json')
 
+async def call_yt_api(client, api='player', data={}):
+    client_data = INNERTUBE_CLIENTS[client]
+    client_ua = client_data['INNERTUBE_CONTEXT']['client']['userAgent']
+    headers = { 'User-Agent': client_ua,
+                'X-Youtube-Client-Name': str(client_data['INNERTUBE_CONTEXT_CLIENT_NAME']),
+                'X-Youtube-Client-Version': client_data['INNERTUBE_CONTEXT']['client']['clientVersion']
+               }
+    payload = { 'context': client_data['INNERTUBE_CONTEXT'],
+               **data }
+    ytcfg = await get_ytcfg()
+    visitor_data = ytcfg.get('VISITOR_DATA')
+    if visitor_data:
+        headers['X-Goog-Visitor-Id'] = visitor_data
+        payload['context']['client']['visitorData'] = visitor_data
+    api_url = f'https://www.youtube.com/youtubei/v1/{api}'
+    my_client = httpx.AsyncClient(http2=True, follow_redirects=True, headers=headers)
+    response = await my_client.post(api_url, json=payload)
+    response.raise_for_status()
+    json_resp = response.json()
+    await response.aclose()
+    return json_resp
+
 @app.route("/")
 async def index():
     return await render_template('index.html')
@@ -845,26 +867,8 @@ async def video_page():
         is_youtube = video_domain in [ 'youtube.com', 'youtu.be' ]
         if subtitles and is_youtube:
             media['subtitles'] = {}
-            if use_innertube_subtitle:
-                # Get subtitle via get_caption api
-                lang = sub_lang
+            for lang in list(subtitles.keys()):
                 media['subtitles'][lang] = f'/subtitle?{short_url_qs}&lang={lang}'
-            else:
-                # Rate-limited, expext 429 response after several attempts
-                yt_dlp_clients = INNERTUBE_CLIENTS
-                logger.debug(f'Subtitle found for {video_id}')
-                for lang in list(subtitles.keys()):
-                    for sub in subtitles[lang]:
-                        if sub['ext'] == 'vtt':
-                            ytdl_client = sub.get('__yt_dlp_client')
-                            if ytdl_client:
-                                subtitle_headers = dict(req_headers)
-                                client_ua = yt_dlp_clients[ytdl_client]['INNERTUBE_CONTEXT']['client'].get('userAgent')
-                                subtitle_headers['User-Agent'] = client_ua
-                            else:
-                                subtitle_headers = req_headers
-                            media['subtitles'][lang] = get_stream_url(sub['url'], headers=subtitle_headers)
-                            logger.debug(f'Extracting {lang} subtitle for {video_id}')
         else:
             media['subtitles'] = None
 
@@ -1600,25 +1604,45 @@ async def get_vtt_from_video_id():
         lang = qs['lang'][0]
     else:
         lang = sub_lang
-    params = generate_caption_params(yt_video_id, lang)
-    json_resp = await post_subtitle_request(params)
-    caption_data = await extract_caption_segments_from_json(json.loads(json_resp.decode()))
-    continuation = test_continuation(caption_data)
-    if continuation:
-        logger.warning('Got continuation response, retrying')
-        new_json_resp = await post_subtitle_request(continuation)
-        new_caption_data = await extract_caption_segments_from_json(json.loads(new_json_resp.decode()))
-        continuation_new = test_continuation(new_caption_data)
-        if continuation_new:
-            logger.error(f'Got another continuation: {continuation_new}')
-            return ''
+    if use_innertube_subtitle:
+        params = generate_caption_params(yt_video_id, lang)
+        json_resp = await post_subtitle_request(params)
+        caption_data = await extract_caption_segments_from_json(json.loads(json_resp.decode()))
+        continuation = test_continuation(caption_data)
+        if continuation:
+            logger.warning('Got continuation response, retrying')
+            new_json_resp = await post_subtitle_request(continuation)
+            new_caption_data = await extract_caption_segments_from_json(json.loads(new_json_resp.decode()))
+            continuation_new = test_continuation(new_caption_data)
+            if continuation_new:
+                logger.error(f'Got another continuation: {continuation_new}')
+                return ''
+            else:
+                logger.debug('Got vtt after continuation retry')
+                webvtt_raw = await webvtt_from_caption_data(new_caption_data)
         else:
-            logger.debug('Got vtt after continuation retry')
-            webvtt_raw = await webvtt_from_caption_data(new_caption_data)
+            webvtt_raw = await webvtt_from_caption_data(caption_data)
+        webvtt = Markup(webvtt_raw).unescape()
+        return webvtt, 200, {'Content-Type': 'text/vtt' }
     else:
-        webvtt_raw = await webvtt_from_caption_data(caption_data)
-    webvtt = Markup(webvtt_raw).unescape()
-    return webvtt, 200, {'Content-Type': 'text/vtt' }
+        android_resp = await call_yt_api('android', 'player', {'videoId': yt_video_id})
+        try:
+            subtitles = android_resp['captions']['playerCaptionsTracklistRenderer']['captionTracks']
+        except Exception as err:
+            subtitles = []
+            logger.error(f'Got error during subtitle extraction: {err}')
+            return '', 404, {'Content-Type': 'text/plain'}
+        sub_url = ''
+        for sub in subtitles:
+            if lang in sub['languageCode']:
+                sub_url = sub['baseUrl'].replace('fmt=srv3', 'fmt=vtt')
+                logger.info(f"Subtitle found for {lang} : {sub['name']['runs'][0]['text']}")
+                break
+        await asyncio.sleep(1)
+        sub_resp = await async_client.get(sub_url)
+        vtt_text = await sub_resp.aread()
+        await sub_resp.aclose()
+        return vtt_text, 200, {'Content-Type': 'text/vtt' }
 
 @app.route('/proxy/<path:path>')
 async def proxy(path):
