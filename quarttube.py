@@ -1600,8 +1600,8 @@ async def get_vtt_from_video_id():
         yt_video_id = qs['v'][0]
     elif parsed_video_url.hostname.endswith('youtu.be'):
         yt_video_id = os.path.basename(parsed_video_url.path)
-    if qs.get('lang'):
-        lang = qs['lang'][0]
+    if request.args.get('lang'):
+        lang = request.args['lang']
     else:
         lang = sub_lang
     if use_innertube_subtitle:
