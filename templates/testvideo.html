@@ -149,7 +149,13 @@
    </script>
    <video controls="" id="videoPlayer" poster="{{ media['thumbnail'] }}">
     {% if media.get('subtitles') %}
-    <track default="" kind="subtitles" label="{{ sub_lang }}" src="{{ media['subtitles'][sub_lang] }}" srclang="{{ sub_lang }}"/>
+    {% for lang in media['subtitles'] %}
+    {% if lang == sub_lang %}
+    <track default kind="subtitles" label="{{ lang }}" src="{{ media['subtitles'][lang] }}" srclang="{{ lang }}"/>
+    {% else %}
+    <track kind="subtitles" label="{{ lang }}" src="{{ media['subtitles'][lang] }}" srclang="{{ lang }}"/>
+    {% endif %}
+    {% endfor %}
     {% endif %}
    </video>
    <script>
