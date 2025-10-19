@@ -945,28 +945,32 @@ async def generate_playlist(hash_m3u8):
         media['video']['short_url']
     ]
     subtitle_playlist_content = []
+    subtitles = media_data.get('subtitles')
     if show_subtitle:
-        subtitles = media_data.get('subtitles')
         if subtitles:
-            subtitle_line = f'#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="sub1",CHARACTERISTICS="public.accessibility.transcribes-spoken-dialog",NAME="English",AUTOSELECT=YES,DEFAULT=NO,FORCED=NO,LANGUAGE="en-US",URI="/hls/subtitle/{ media_hash }.m3u8"'
-            playlist_content.append(subtitle_line)
             for lang in list(subtitles.keys()):
-                if sub_lang in lang.lower():
-                    subtitle_url = subtitles[lang]
-                    logger.debug(f'Subtitle found for {lang} : {subtitle_url}')
-                    break
-            subtitle_playlist_content = [ '#EXTM3U',
-                f"#EXT-X-TARGETDURATION:{ media.get('duration') }",
-                '#EXT-X-MEDIA-SEQUENCE:1',
-                '#EXT-X-PLAYLIST-TYPE:VOD',
-                f"#EXTINF:{ media.get('duration') }",
-                subtitle_url,
-                '#EXT-X-ENDLIST' ]
+                if lang == sub_lang:
+                    subtitle_line = f'#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="sub1",CHARACTERISTICS="public.accessibility.transcribes-spoken-dialog",NAME="{ lang }",AUTOSELECT=YES,DEFAULT=YES,FORCED=NO,LANGUAGE="{ lang }",URI="/hls/subtitle/{ media_hash }.m3u8"'
+                else:
+                    subtitle_line = f'#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="sub1",CHARACTERISTICS="public.accessibility.transcribes-spoken-dialog",NAME="{ lang }",AUTOSELECT=NO,DEFAULT=NO,FORCED=NO,LANGUAGE="{ lang }",URI="/hls/subtitle/{ media_hash }.m3u8?lang={ lang }"'
+                playlist_content.append(subtitle_line)
 
     subtitle_requested = request.path.startswith('/hls/subtitle')
     if not subtitle_requested:
         playlist_string = "\n".join(playlist_content)
     else:
+        requested_language = request.args.get('lang')
+        if requested_language:
+            subtitle_url = subtitles.get(requested_language)
+        else:
+            subtitle_url = subtitles.get(sub_lang)
+        subtitle_playlist_content = [ '#EXTM3U',
+            f"#EXT-X-TARGETDURATION:{ media.get('duration') }",
+            '#EXT-X-MEDIA-SEQUENCE:1',
+            '#EXT-X-PLAYLIST-TYPE:VOD',
+            f"#EXTINF:{ media.get('duration') }",
+            subtitle_url,
+            '#EXT-X-ENDLIST' ]
         if show_subtitle and subtitle_playlist_content:
             playlist_string = "\n".join(subtitle_playlist_content)
         else:
