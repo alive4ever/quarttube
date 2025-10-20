@@ -17,38 +17,8 @@ import hashlib
 import logging
 import random
 import blackboxprotobuf
-
-class JSONStorage:
-    def __init__(self, filename):
-        self.filename = filename
-        self._lock = asyncio.Lock()
-
-    async def write(self, data):
-        async with self._lock:
-            with open(self.filename, 'w') as f:
-                json.dump(data, f)
-
-    async def read(self):
-        async with self._lock:
-            try:
-                with open(self.filename, 'r') as f:
-                    return json.load(f)
-            except FileNotFoundError:
-                return {}
-
-    async def update(self, update_dict):
-        async with self._lock:
-            try:
-                with open(self.filename, 'r') as f:
-                    data = json.load(f)
-            except FileNotFoundError:
-                data = {}
-            
-            # Update the entire dictionary
-            data.update(update_dict)
-            
-            with open(self.filename, 'w') as f:
-                json.dump(data, f)
+from caption_storage import *
+from media_storage import *
 
 logging.basicConfig(
     level=logging.ERROR,
@@ -696,7 +666,8 @@ except Exception as err:
     del secret_key
 
 # Initialize media data storage
-media_json_storage = JSONStorage('data/media_storage.json')
+logger.info('Initializing media storage')
+initialize_media_db()
 
 async def call_yt_api(client, api='player', data={}):
     client_data = INNERTUBE_CLIENTS[client]
@@ -781,10 +752,10 @@ async def video_page():
     short_url_qs = urllib.parse.urlencode({'hash': media_hash })
     retry_delay = 5
     try:
-        media_list = await media_json_storage.read()
-        if media_list.get(media_hash):
+        media_info = load_media_db(media_hash)
+        if media_info:
             logger.info(f"Got media info from storage cache")
-            media = media_list[media_hash]
+            media = media_info
     except Exception as err:
         logger.warning('Unable to accesss media storage')
         logger.debug(f'Traceback:\n{err}')
@@ -903,13 +874,13 @@ async def video_page():
             media['hls_manifest'] = f'/hls/{media_hash}.m3u8'
         elif use_dash_js:
             media['mpd_manifest'] = f'/dash/{media_hash}.mpd'
-        media_storage = { media_hash: media }
         if request.args.get('debug'):
             logger.info('Saving video_content_info')
             with open(f'data/video_content_info_{media_hash}.json', 'w') as file:
                 json.dump(video_content_info, file)
         logger.debug(f'Appending {media_hash} to media storage')
-        await media_json_storage.update(media_storage)
+        initialize_media_db()
+        update_media_db(media_hash, media)
         logger.info(f'Media storage has been updated with {media_hash}')
         logger.debug(f'Original video url: {video_id}')
     mpd_manifest = f"/dash/{media_hash}.mpd"
@@ -925,9 +896,9 @@ async def generate_playlist(hash_m3u8):
     logger.debug(f'Got media hash: {media_hash}')
     media_data = {}
     try:
-        media_data_list = await media_json_storage.read()
-        if media_data_list.get(media_hash):
-            media_data = media_data_list[media_hash]
+        media_info = load_media_db(media_hash)
+        if media_info:
+            media_data = media_info
         else:
             logger.error(f'Unable to find media data for {media_hash}')
             return await show_error_page('Not found', 'Requested data is not available', f'Unable to find media data for {media_hash}'), 404
@@ -983,8 +954,7 @@ async def serve_mpd_manifest(video_hash_mpd):
     if not video_hash_mpd.endswith('.mpd'):
         return await show_error_page('Bad Request', 'Invalid url for mpd manifest', 'Unknown extension for dash manifest'), 400
     video_hash = video_hash_mpd.split('.')[0]
-    media = await media_json_storage.read()
-    media_selected = media.get(video_hash)
+    media_selected = load_media_db(video_hash)
     if media_selected:
         return await render_template('manifest.mpd', media=media_selected, get_period_mpd=get_period_mpd), 200, {'Content-Type': 'application/dash+xml'}
     else:
@@ -1001,9 +971,9 @@ async def redirect_to_full_path():
     elif 'audio' in request.path:
         current_item = 'audio'
     try:
-        media_data_list = await media_json_storage.read()
-        if media_data_list.get(media_hash):
-            media = media_data_list.get(media_hash)
+        media_info = load_media_db(media_hash)
+        if media_info:
+            media = media_info
             if use_mediaflow:
                 full_url = media[current_item]['mediaflow_url']
                 if full_url is None:
@@ -1473,9 +1443,12 @@ async def clean_up():
     form_data = await request.form
     is_okay = escape(form_data.get('confirmation'))
     include_session_key = form_data.get('include_session_key')
-    items_to_clean = [ 'media_storage.json', 'cookies.txt', 'ytcfg.json' ]
+    include_captions_db = form_data.get('include_captions_db')
+    items_to_clean = [ 'media_storage.db', 'cookies.txt', 'ytcfg.json' ]
     if include_session_key:
         items_to_clean.append('session_key.txt')
+    if include_captions_db:
+        items_to_clean.append('captions.db')
     if is_okay:
         for item in items_to_clean:
             file_path = os.path.join('data', item)
@@ -1585,14 +1558,13 @@ async def settings():
 
 @app.route('/subtitle')
 async def get_vtt_from_video_id():
-    try:
-        media_data = await media_json_storage.read()
-    except Exception as err:
+    if not os.path.isfile('data/media_storage.db'):
         logger.error('No media data is present')
         return await show_error_page('No media data', 'No media data is present', 'Try loading a watch page to populate media data'), 404
     media_hash = request.args.get('hash')
     if media_hash:
-        video_id = media_data[media_hash].get('video_id')
+        media_data = load_media_db(media_hash)
+        video_id = media_data.get('video_id')
     parsed_video_url = urllib.parse.urlparse(video_id)
     is_youtube = '.'.join(parsed_video_url.hostname.split('.')[-2:]) in ['youtube.com', 'youtu.be']
     if not is_youtube:
@@ -1608,6 +1580,13 @@ async def get_vtt_from_video_id():
         lang = request.args['lang']
     else:
         lang = sub_lang
+    if not os.path.isfile('data/captions.db'):
+        logger.info('Initializing captions database')
+        initialize_captions_db()
+    cached_response = load_subtitle(media_hash, lang)
+    if cached_response:
+        logger.info(f'Got {lang} subtitle for {media_hash} from cache: {len(cached_response)}')
+        return cached_response, 200, {'Content-Type': 'text/vtt'}
     if use_innertube_subtitle:
         params = generate_caption_params(yt_video_id, lang)
         json_resp = await post_subtitle_request(params)
@@ -1627,6 +1606,8 @@ async def get_vtt_from_video_id():
         else:
             webvtt_raw = await webvtt_from_caption_data(caption_data)
         webvtt = Markup(webvtt_raw).unescape()
+        logger.info(f'Saving {lang} subtitle cache for {media_hash}')
+        save_subtitle(media_hash, lang, webvtt)
         return webvtt, 200, {'Content-Type': 'text/vtt' }
     else:
         android_resp = await call_yt_api('android', 'player', {'videoId': yt_video_id})
@@ -1646,6 +1627,8 @@ async def get_vtt_from_video_id():
         sub_resp = await async_client.get(sub_url)
         vtt_text = await sub_resp.aread()
         await sub_resp.aclose()
+        logger.info(f'Saving {lang} subtitle cache for {media_hash}')
+        save_subtitle(media_hash, lang, vtt_text)
         return vtt_text, 200, {'Content-Type': 'text/vtt' }
 
 @app.route('/proxy/<path:path>')
