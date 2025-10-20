@@ -130,11 +130,16 @@
    <p>
    </p>
    <form action="clean_up" method="POST">
+    <p>
     <input name="include_session_key" type="checkbox"/>
     Include session key
-    <input name="confirmation" type="hidden" value="okay"/>
-    <p>
     </p>
+    <p>
+    <input name="include_captions_db" type="checkbox"/>
+    Include captions database
+    </p>
+    <input name="confirmation" type="hidden" value="okay"/>
+    <br/>
     <input type="submit" value="Okay"/>
    </form>
   </details>
