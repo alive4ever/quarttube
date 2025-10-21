@@ -75,19 +75,33 @@ default_value = ({
 def get_config():
     default_config = dict(default_value)
     conf_file = 'data/settings.ini'
+    needed_sections = list(default_config.keys())
     if not os.path.isdir('data'):
         logger.info('Creating data directory')
         os.makedirs('data')
     try:
+        config_keys = []
         with open(conf_file, 'r') as file:
             app_config.read_file(file)
+        for n, key in enumerate(app_config.keys()):
+            if not key == 'DEFAULT':
+                config_keys.append(key)
+        config_is_valid = config_keys == needed_sections
+        if config_is_valid :
+            logger.info('Configuration file is valid')
+        else:
+            logger.info('Configuration file is invalid, using default config.')
+            app_config.read_dict(default_config)
+            with open(conf_file, 'w') as cfg_save:
+                logger.info('Overwriting config_file with default configuration')
+                app_config.write(cfg_save)
+
     except Exception as err:
         logger.debug(f"Unable to load configuration file. Using default config.\n{err}")
-        default = app_config.read_dict(default_config)
+        app_config.read_dict(default_config)
         with open(conf_file, 'w') as file:
             logger.info('Saving default config')
             app_config.write(file)
-        return default
 
 def generate_mediaflow_url(dest_url, headers: dict):
     if not use_mediaflow:
