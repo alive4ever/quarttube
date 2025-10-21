@@ -76,10 +76,14 @@ pip install git+https://github.com/alive4ever/yt-dlp-YTNSigDukpy.git
 ```bash
 # Load virtual environment
 . ~/venv/bin/activate
+# Create an empty settings.ini file
+if ! [ -f ./data/settings.ini ] ; then
+    touch ./data/settings.ini
+fi
 # Using uvicorn
 uvicorn --reload --reload-include 'data/settings.ini' --host localhost --port 5000 quarttube:app
 # Using gunicorn
-gunicorn --reload-extra-file 'data/settings.ini' --reload -k uvicorn_worker.UvicornWorker -b localhost:5000 quarttube:app
+watchfiles 'gunicorn -k uvicorn_worker.UvicornWorker -b localhost:5000 quarttube:app' 'data/settings.ini'
 # Using hypercorn + watchfiles
 watchfiles 'hypercorn -b localhost:5000 quarttube:app' 'data/settings.ini'
 
