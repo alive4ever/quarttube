@@ -64,8 +64,8 @@ cd ..
 # Optional dependency
 pip install mediaflow-proxy
 
-# Recommended dependency, for faster YT video info extraction
-pip install git+https://github.com/alive4ever/yt-dlp-YTNSigDukpy.git
+# Recommended dependency, for faster YT video info extraction. Requires a proper js runtime (i.e. one of `[ 'deno', 'node', 'bun']` ) to be available.
+pip install git+https://github.com/alive4ever/yt-jsc-youtubei
 
 ```
 
