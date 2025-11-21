@@ -433,7 +433,7 @@ def get_video_info(video_url, wanted_format):
         'extractor_args': {
         },
         'format': wanted_format,
-        'cookies': 'data/cookies.txt',
+        'cookiefile': 'data/cookies.txt',
     }
 
     if log_level == 'DEBUG':
