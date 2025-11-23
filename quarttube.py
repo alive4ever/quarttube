@@ -661,6 +661,18 @@ def find_sidx_moof_mp4(video_init_bytes):
     index_range = f'{sidx_start}-{moof_start}'
     return init_range, index_range
 
+def find_cues_offset_webm(video_chunk):
+    start_bytes = bytearray([0x1c, 0x53, 0xbb , 0x6b])
+    start_re = re.compile(bytes(start_bytes)+r'[ABC]'.encode())
+    end_bytes = bytearray([0x1f, 0x43, 0xb6, 0x75])
+    end_re = re.compile(r'.'.encode()+bytes(end_bytes))
+    indexStart = re.search(start_re, video_chunk).start()
+    indexEnd = re.search(end_re, video_chunk).start()
+    initialization = indexStart - 1
+    init_range = f'0-{initialization}'
+    index_range = f'{indexStart}-{indexEnd}'
+    return init_range, index_range
+
 app_secret_file = 'data/session_key.txt'
 # Load/generate app secret key
 try:
@@ -752,7 +764,7 @@ async def video_page():
         yt_audio_formats = { 'opus': 251, 'aac': 140 }
         alternative_format = f"{yt_video_formats.get(v_height)}+{yt_audio_formats.get('aac')}"
         selected_format = hls_format
-        fallback_format = f'bestvideo[ext=mp4][height<={video_height}][protocol=https]+bestaudio[ext=m4a][protocol=https]'
+        fallback_format = f'bestvideo[height<={video_height}][protocol=https]+bestaudio[protocol=https]'
     else:
         selected_format = hls_format
         fallback_format = default_format
@@ -877,7 +889,10 @@ async def video_page():
                 logger.debug(f'Getting 32 kbytes test_segment to be analyzed for {mtype} of {video_id}')
                 init_segment = await get_test_segment(stream_data[index]['url'], this_req_headers)
                 logger.debug(f'Analyzing test_segment for {mtype} of {video_id}')
-                initialization, index_range = find_sidx_moof_mp4(init_segment)
+                if stream_data[index]['ext'] in [ 'mp4', 'm4a' ]:
+                    initialization, index_range = find_sidx_moof_mp4(init_segment)
+                elif stream_data[index]['ext'] == 'webm':
+                    initialization, index_range = find_cues_offset_webm(init_segment)
                 logger.debug(f'Got segment_base info for {mtype}: {initialization}, {index_range}')
                 segment_base_data = { 'initialization': initialization, 'index_range': index_range }
                 media[mtype]['segment_base'] = segment_base_data
