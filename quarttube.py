@@ -642,6 +642,7 @@ async def get_test_segment(url, headers={}):
     this_req_header = headers
     segment_headers = {"Range": f"bytes=0-{32*1024}"}
     this_req_header.update(segment_headers)
+    await asyncio.sleep(2)
     init_segment_resp = await async_client.get(url, headers=this_req_header)
     init_segment_resp.raise_for_status()
     init_segment = await init_segment_resp.aread()
