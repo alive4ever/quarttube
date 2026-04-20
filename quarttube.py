@@ -1649,26 +1649,49 @@ async def get_vtt_from_video_id():
         save_subtitle(media_hash, lang, webvtt)
         return webvtt, 200, {'Content-Type': 'text/vtt' }
     else:
-        android_resp = await call_yt_api('android', 'player', {'videoId': yt_video_id})
-        try:
-            subtitles = android_resp['captions']['playerCaptionsTracklistRenderer']['captionTracks']
-        except Exception as err:
+        retries = 3
+        while retries > 0:
+            try:
+                android_resp = await call_yt_api('android', 'player', {'videoId': yt_video_id})
+                is_playable = android_resp['playabilityStatus']['status']
+                if not 'ok' in is_playable.lower():
+                    raise Exception("Got unplayable response from yt api call")
+                subtitles = android_resp['captions']['playerCaptionsTracklistRenderer']['captionTracks']
+                break
+            except Exception as err:
+                logger.error(f'Got an exception during api call. Retries left {retries}\n{err}')
+                retries -= 1
+                await asyncio.sleep(2)
+        if retries == 0:
             subtitles = []
             logger.error(f'Got error during subtitle extraction: {err}')
             return '', 404, {'Content-Type': 'text/plain'}
         sub_url = ''
+        logger.info(f'Requested subtitle: {lang}')
+        if '-' in lang and len(lang) > 7:
+            logger.warning('Language code is invalid. Sanitizing...')
+            lang = lang.split('-')[0]
+            logger.info(f'Sanitized lang is: {lang}')
         for sub in subtitles:
             if lang in sub['languageCode']:
                 sub_url = sub['baseUrl'].replace('fmt=srv3', 'fmt=vtt')
                 logger.info(f"Subtitle found for {lang} : {sub['name']['runs'][0]['text']}")
                 break
         await asyncio.sleep(1)
-        sub_resp = await async_client.get(sub_url)
-        vtt_text = await sub_resp.aread()
-        await sub_resp.aclose()
-        logger.info(f'Saving {lang} subtitle cache for {media_hash}')
-        save_subtitle(media_hash, lang, vtt_text)
-        return vtt_text, 200, {'Content-Type': 'text/vtt' }
+        if not len(sub_url) == 0:
+            logger.debug(f'Subtitle url: { sub_url }')
+            sub_resp = await async_client.get(sub_url)
+            vtt_text = await sub_resp.aread()
+            await sub_resp.aclose()
+            logger.info(f'Saving {lang} subtitle cache for {media_hash}')
+            save_subtitle(media_hash, lang, vtt_text)
+            return vtt_text, 200, {'Content-Type': 'text/vtt' }
+        else:
+            logger.error(f'Got zero length url for {lang} subtitle')
+            available_sub = []
+            for sub in subtitles:
+                available_sub.append(sub['languageCode'])
+            return await show_error_page('No subtitle found', f'Got zero length url for {lang} subtitle', 'Available subtitles:\n' + '\n'.join(available_sub)), 404
 
 @app.route('/proxy/<path:path>')
 async def proxy(path):
