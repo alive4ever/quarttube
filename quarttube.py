@@ -642,12 +642,21 @@ async def get_test_segment(url, headers={}):
     this_req_header = headers
     segment_headers = {"Range": f"bytes=0-{32*1024}"}
     this_req_header.update(segment_headers)
-    await asyncio.sleep(2)
-    init_segment_resp = await async_client.get(url, headers=this_req_header)
-    init_segment_resp.raise_for_status()
-    init_segment = await init_segment_resp.aread()
-    await init_segment_resp.aclose()
-    return init_segment
+    await asyncio.sleep(1)
+    retries = 3
+    while retries > 0:
+        try:
+            init_segment_resp = await async_client.get(url, headers=this_req_header)
+            init_segment_resp.raise_for_status()
+            init_segment = init_segment_resp.content
+            await init_segment_resp.aclose()
+            return init_segment
+        except Exception as err:
+            retries -= 1
+            await asyncio.sleep(3)
+            logger.error(f'Got an exception during segment retrieval. Retries left {retries}.\n{err}')
+            continue
+    return await show_error_page('Unable to get test segment', 'Unable to get test segment', f'Unable to get test segment'), 500
 
 def find_sidx_moof_mp4(video_init_bytes):
     sidx_re = re.compile(br'.{4}sidx')
