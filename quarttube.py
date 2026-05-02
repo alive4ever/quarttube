@@ -61,6 +61,8 @@ default_value = ({
         'stream': 
         { 'use_mediaflow': False,
           'mediaflow_instance': 'http://localhost:8088',
+          'use_proxy': False,
+          'proxy': 'http://localhost:3128',
          },
         'playback':
         { 'use_dash_js': True,
@@ -201,7 +203,7 @@ except Exception as err:
     pass
 
 async def get_ytcfg():
-    client = httpx.AsyncClient(http2=True, follow_redirects=True, headers=desktop_headers, cookies=cookiejar)
+    client = async_client
     ytcfg_file = 'data/ytcfg.json'
     if not os.path.isfile(ytcfg_file):
         youtube = 'https://www.youtube.com'
@@ -239,6 +241,12 @@ else:
     use_mediaflow = False
     app_config['stream']['use_mediaflow'] = str(use_mediaflow)
 mediaflow_instance = app_config['stream'].get('mediaflow_instance')
+use_proxy = app_config['stream'].getboolean('use_proxy', False)
+proxy_server = None
+if use_proxy:
+    proxy_server = app_config['stream'].get('proxy')
+    logger.info(f'Using proxy server: { proxy_server }')
+
 video_height = app_config['playback'].getint('video_height')
 use_dash_js = app_config['playback'].getboolean('use_dash_js')
 show_subtitle = app_config['playback'].getboolean('show_subtitle', False)
@@ -274,7 +282,10 @@ def normalize_headers(headers):
     return normalized_headers
 
 desktop_headers = normalize_headers(desktop_headers_dict)
-async_client = httpx.AsyncClient(headers=desktop_headers, http2=True, follow_redirects=True, cookies=cookiejar)
+if proxy_server:
+    async_client = httpx.AsyncClient(headers=desktop_headers, http2=True, follow_redirects=True, cookies=cookiejar, proxy=proxy_server)
+else:
+    async_client = httpx.AsyncClient(headers=desktop_headers, http2=True, follow_redirects=True, cookies=cookiejar)
 appended_headers = { 'Access-Control-Allow-Origin': '*',
                 "Access-Control-Allow-Methods": "*",
                 "Accept-Ranges": "bytes",
@@ -435,6 +446,8 @@ def get_video_info(video_url, wanted_format):
         'format': wanted_format,
         'cookiefile': 'data/cookies.txt',
     }
+    if proxy_server:
+        ydl_opts['proxy'] = proxy_server
 
     if log_level == 'DEBUG':
         ydl_opts.update({'verbose': True})
@@ -728,7 +741,7 @@ async def call_yt_api(client, api='player', data={}):
         headers['X-Goog-Visitor-Id'] = visitor_data
         payload['context']['client']['visitorData'] = visitor_data
     api_url = f'https://www.youtube.com/youtubei/v1/{api}'
-    my_client = httpx.AsyncClient(http2=True, follow_redirects=True, headers=headers)
+    my_client = async_client
     response = await my_client.post(api_url, json=payload)
     response.raise_for_status()
     json_resp = response.json()
@@ -1107,9 +1120,15 @@ async def stream(url_part: str = ''):
     is_segment = parsed_video_url.path.endswith('.ts')
     # Do not use cookiejar for hls, to use Cookie header from video_content_info earlier
     if is_hls and is_segment:
-        session_client = httpx.AsyncClient(headers=client_headers, follow_redirects=True, http2=True)
+        if proxy_server:
+            session_client = httpx.AsyncClient(headers=client_headers, follow_redirects=True, http2=True, proxy=proxy_server)
+        else:
+            session_client = httpx.AsyncClient(headers=client_headers, follow_redirects=True, http2=True)
     else:
-        session_client = httpx.AsyncClient(headers=client_headers, follow_redirects=True, http2=True, cookies=cookies)
+        if proxy_server:
+            session_client = httpx.AsyncClient(headers=client_headers, follow_redirects=True, http2=True, cookies=cookies, proxy=proxy_server)
+        else:
+            session_client = httpx.AsyncClient(headers=client_headers, follow_redirects=True, http2=True, cookies=cookies)
 
     if request.method == 'HEAD':
         status_code, server_headers = await head(video_url, session_client, client_headers)
