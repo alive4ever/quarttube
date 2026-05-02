@@ -675,13 +675,21 @@ def find_cues_offset_webm(video_chunk):
     start_bytes = bytearray([0x1c, 0x53, 0xbb , 0x6b])
     start_re = re.compile(bytes(start_bytes)+r'[@ABC]'.encode())
     end_bytes = bytearray([0x1f, 0x43, 0xb6, 0x75])
-    end_re = re.compile(r'.'.encode()+bytes(end_bytes))
-    indexStart = re.search(start_re, video_chunk).start()
-    indexEnd = re.search(end_re, video_chunk).start()
-    initialization = indexStart - 1
-    init_range = f'0-{initialization}'
-    index_range = f'{indexStart}-{indexEnd}'
-    return init_range, index_range
+    end_re = re.compile(r'.'.encode()+bytes(end_bytes), re.DOTALL)
+    try:
+        indexStart = re.search(start_re, video_chunk).start()
+        logger.debug(f'indexStart: {indexStart}')
+        indexEnd = re.search(end_re, video_chunk).start()
+        logger.debug(f'indexEnd: {indexEnd}')
+        initialization = indexStart - 1
+        init_range = f'0-{initialization}'
+        index_range = f'{indexStart}-{indexEnd}'
+        return init_range, index_range
+    except Exception as err:
+        logger.error(f'Unable to find webm index\n{err}')
+        with open('data/chunk.bin', 'wb') as file:
+            logger.info('Saving chunk into data/chunk.bin for further analysis')
+            file.write(video_chunk)
 
 app_secret_file = 'data/session_key.txt'
 # Load/generate app secret key
