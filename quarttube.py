@@ -1,6 +1,7 @@
 import configparser
 from quart import Quart, request, Response, redirect, abort, render_template, make_response, url_for, jsonify, flash
 from werkzeug.http import remove_hop_by_hop_headers
+from datetime import datetime
 import subprocess
 import httpx
 import http.cookiejar
@@ -465,8 +466,20 @@ def get_video_info(video_url, wanted_format):
             'description': Markup(info.get('description', 'No description available')).unescape(),
             'duration': info.get('duration'),
             'duration_string': info.get('duration_string'),
+            'uploader': info.get('uploader'),
+            'uploader_id': info.get('uploader_id'),
+            'timestamp': info.get('timestamp'),
+            'original_url': info.get('original_url'),
+            'view_count': info.get('view_count'),
         }
         return video_info
+
+def get_isodate(timestamp):
+    if not isinstance(timestamp, int):
+        timestamp = int(timestamp)
+    datetime_data = datetime.fromtimestamp(timestamp)
+    isodate = datetime.isoformat(datetime_data)
+    return isodate
 
 def get_period_mpd(seconds):
     if not isinstance(seconds, int):
@@ -905,6 +918,15 @@ async def video_page():
         media['video_id'] = video_id
         media['title'] = video_content_info.get('title', 'Untitled')
         media['description'] = video_content_info.get('description', 'No description provided.')
+        media['timestamp'] = video_content_info.get('timestamp')
+        if media['timestamp']:
+            media['publish_date'] = get_isodate(media['timestamp'])
+        else:
+            media['publish_date'] = video_content_info.get('publish_date', 'Unknown')
+
+        media['uploader'] = video_content_info.get('uploader')
+        media['original_url'] = video_content_info.get('original_url')
+        media['view_count'] = video_content_info.get('view_count')
         media['thumbnail'] = thumbnail
         if media['audio']['type'] == 'vnd.apple.mpegurl' and media['video']['type'] == 'vnd.apple.mpegurl':
             media['is_hls'] = True
@@ -935,6 +957,9 @@ async def video_page():
         elif use_dash_js:
             media['mpd_manifest'] = f'/dash/{media_hash}.mpd'
         if request.args.get('debug'):
+            logger.info('Saving media_data_json')
+            with open(f'data/media_data_{media_hash}.json', 'w') as file:
+                json.dump(media, file)
             logger.info('Saving video_content_info')
             with open(f'data/video_content_info_{media_hash}.json', 'w') as file:
                 json.dump(video_content_info, file)
@@ -1361,7 +1386,7 @@ async def ytsearch():
                         for member in contents:
                             key = list(member.keys())[0]
                             if not member.get(key):
-                                loging.debug(member.keys())
+                                logger.debug(member.keys())
                                 pass
                             else:
                                 item = member[key]
@@ -1384,6 +1409,24 @@ async def ytsearch():
                                         data['view_count'] = item['viewCountText'].get('simpleText', 'unknown')
                                     else:
                                         data['view_count'] = 'unknown'
+                                    data['uploader'] = item['longBylineText']['runs'][0]['text']
+                                    if item.get('publishedTimeText'):
+                                        data['published_time'] = item['publishedTimeText']['simpleText']
+                                    else:
+                                        data['published_time'] = 'Unknown'
+
+                                    if item.get('detailedMetadataSnippets'):
+                                        data['description'] = item['detailedMetadataSnippets'][0]['snippetText']['runs'][0]['text']
+                                    else:
+                                        data['description'] = ''
+                                    if item.get('badges'):
+                                        badge_list = []
+                                        for badge in item['badges']:
+                                            label = badge['metadataBadgeRenderer']['label']
+                                            badge_list.append(label)
+                                        data['badges'] = '|'.join(badge_list)
+                                    else:
+                                        data['badges'] = ''
                                     search_data.append(data)
                         search_result = {}
                         search_result['query'] = search_query_raw
@@ -1455,6 +1498,25 @@ async def ytsearch():
                                     data['view_count'] = item['viewCountText']['simpleText']
                                 else:
                                     data['view_count'] = 'unknown views'
+                                data['uploader'] = item['longBylineText']['runs'][0]['text']
+                                if item.get('publishedTimeText'):
+                                    data['published_time'] = item['publishedTimeText']['simpleText']
+                                else:
+                                    data['published_time'] = 'Unknown'
+
+                                if item.get('detailedMetadataSnippets'):
+                                    data['description'] = item['detailedMetadataSnippets'][0]['snippetText']['runs'][0]['text']
+                                else:
+                                    data['description'] = ''
+                                if item.get('badges'):
+                                    badge_list = []
+                                    for badge in item['badges']:
+                                        label = badge['metadataBadgeRenderer']['label']
+                                        badge_list.append(label)
+                                    data['badges'] = '|'.join(badge_list)
+                                else:
+                                    data['badges'] = ''
+
                                 search_data.append(data)
                     search_result = {}
                     search_result['query'] = search_query_raw
