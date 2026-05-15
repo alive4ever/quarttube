@@ -705,7 +705,13 @@ def find_cues_offset_webm(video_chunk):
     try:
         indexStart = re.search(start_re, video_chunk).start()
         logger.debug(f'indexStart: {indexStart}')
-        indexEnd = re.search(end_re, video_chunk).start()
+        indexEndList = []
+        for item in re.finditer(end_re, video_chunk):
+            indexEndList.append(item)
+        if len(indexEndList) > 1:
+            indexEnd = indexEndList[-1].start()
+        else:
+            indexEnd = indexEndList[0].start()
         logger.debug(f'indexEnd: {indexEnd}')
         initialization = indexStart - 1
         init_range = f'0-{initialization}'
