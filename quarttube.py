@@ -109,12 +109,30 @@ def get_config():
 def generate_mediaflow_url(dest_url, headers: dict):
     if not use_mediaflow:
         return None
-    elif not mediaflow_import:
-        return None
-    mediaflow_instance = 'http://dummy'
+    mediaflow_dummy_instance = 'http://dummy'
     endpoint = '/proxy/stream'
     if 'm3u8' in dest_url:
         endpoint = '/proxy/hls/manifest.m3u8'
+    if not mediaflow_import:
+        payload = {
+            'mediaflow_proxy_url': mediaflow_dummy_instance,
+            'endpoint': endpoint,
+            'destination_url': dest_url,
+            'request_headers': headers,
+            }
+        try:
+            resp = httpx.post(f'{mediaflow_instance}/generate_url', json=payload)
+            if resp.status_code == 200:
+                json_resp = resp.json()
+                resp.close()
+                dummy_url = json_resp['url']
+                url = dummy_url.replace(mediaflow_dummy_instance, '')
+                return url
+            else:
+                return None
+        except Exception as err:
+            logger.warning(f'Unable to call mediaflow api\n{err}')
+            return None
     mediaflow_dummy_url = encode_mediaflow_proxy_url(mediaflow_proxy_url=mediaflow_instance, endpoint=endpoint, destination_url=dest_url, request_headers=headers)
     mediaflow_url = mediaflow_dummy_url.replace(mediaflow_instance, '')
     return mediaflow_url
@@ -236,11 +254,7 @@ async def show_error_page(status, message, details=''):
 
 get_config()
 # App configuration
-if mediaflow_import:
-    use_mediaflow = app_config['stream'].getboolean('use_mediaflow', False)
-else:
-    use_mediaflow = False
-    app_config['stream']['use_mediaflow'] = str(use_mediaflow)
+use_mediaflow = app_config['stream'].getboolean('use_mediaflow', False)
 mediaflow_instance = app_config['stream'].get('mediaflow_instance')
 use_proxy = app_config['stream'].getboolean('use_proxy', False)
 proxy_server = None
