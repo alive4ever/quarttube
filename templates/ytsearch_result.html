@@ -140,12 +140,17 @@
      <a href="{{ item['url'] }}">
       {{ item['title'] }}
      </a>
+     <p>{{ item['published_time'] }}</p>
+     <p><b>{{ item['uploader'] }}</b></p>
      <p>
       Total views:
       <code>
        {{ item['view_count'] }}
       </code>
      </p>
+     <p>{{ item['description'] }}</p>
+     <hr/>
+     <p>{{ item['badges'] }}</p>
     </div>
    </div>
    {% endfor %}
