@@ -1329,7 +1329,13 @@ async def get_result():
         item['url'] = routed_url
         if item.get('lengthSeconds'):
             item['duration'] = get_period_text(item['lengthSeconds'])
-        item['thumbnail'] = localize_url(item['thumbnailUrl']+'.M')
+        thumbnail = item['thumbnailUrl']
+        current_thumb = item['thumbnailUrl'] + '.M'
+        status, hdr = await head(current_thumb)
+        if status == 200:
+            thumbnail = current_thumb
+
+        item['thumbnail'] = thumbnail
     next_page_qs = urllib.parse.urlencode(
             { 'query': query_string,
               'offset': offset_query + result_per_page,
