@@ -808,9 +808,14 @@ async def video_page():
         logger.error(f'Traceback:\n{err}')
         return await show_error_page('Invalid url', 'Invalid url entered', f'Traceback:\n{err}'), 400
     video_site = parsed_video_id.hostname
+    allowed_domains = [ 'youtube.com', 'youtu.be', 'nicovideo.jp', 'bilibili.com', 'bilibili.tv' ]
     if video_site:
         video_domain = '.'.join(video_site.split('.')[-2:])
-        logger.info(f'{video_site} detected')
+        if video_domain in allowed_domains:
+            logger.info(f'{video_site} detected')
+        else:
+            logger.error(f'{video_domain} is not in allowed domains')
+            return await show_error_page('Domain not allowed', f'{video_domain} is not in allow list.', f'{video_domain} is not in {allowed_domains}'), 403
     else:
         logger.error('Invalid domain given.')
         return await show_error_page('Invalid domain', 'Invalid url entered', 'A valid url is required'), 400
