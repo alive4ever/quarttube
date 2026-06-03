@@ -897,6 +897,12 @@ async def video_page():
             if 'bilibili' in video_domain:
                 media[index[n]].update({ 'segment_base': item.get('segment_base')})
             if item['vcodec'] != 'none':
+                if item['vcodec'] == 'vp9':
+                    # Chromium based browsers won't play *ambiguous* vp9 codec, so level 5 is used
+                    # https://developer.mozilla.org/en-US/docs/Web/API/WebCodecs_API/Codec_selection#video_codecs
+                    actual_vcodec = 'vp09.00.50.08.00'
+                else:
+                    actual_vcodec = item['vcodec']
                 has_res = item.get('resolution')
                 if has_res:
                     res_member = [ 'width', 'height']
@@ -905,7 +911,7 @@ async def video_page():
                 media[index[n]].update({ 'short_url': f'/video?{short_url_qs}' })
                 media[index[n]].update({ 'type': f"video/{item['video_ext']}" })
                 media[index[n]].update({ 'bitrate': item['vbr'] })
-                media[index[n]].update({ 'codecs': item['vcodec'] })
+                media[index[n]].update({ 'codecs': actual_vcodec })
                 media[index[n]].update({ 'fps': item.get('fps') })
             else:
                 media[index[n]].update({ 'short_url': f'/audio?{short_url_qs}' })
