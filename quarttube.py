@@ -910,7 +910,7 @@ async def video_page():
                         media[index[n]].update({ res_member[num]: value })
                 media[index[n]].update({ 'short_url': f'/video?{short_url_qs}' })
                 media[index[n]].update({ 'type': f"video/{item['video_ext']}" })
-                media[index[n]].update({ 'bitrate': item['vbr'] })
+                media[index[n]].update({ 'bitrate': round(float(item['vbr'])) * 1000 })
                 media[index[n]].update({ 'codecs': actual_vcodec })
                 media[index[n]].update({ 'fps': item.get('fps') })
             else:
@@ -922,7 +922,7 @@ async def video_page():
                         audio_bitrate = float(audio_bitrate)
                 else:
                     audio_bitrate = 0
-                media[index[n]].update({ 'bitrate': audio_bitrate })
+                media[index[n]].update({ 'bitrate': round(audio_bitrate) * 1000 })
                 media[index[n]].update({ 'codecs': item.get('acodec', 'unknown') })
             if 'm3u8' in item['protocol']:
                 media[index[n]].update({ 'type': 'vnd.apple.mpegurl' })
