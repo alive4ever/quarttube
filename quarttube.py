@@ -1584,20 +1584,18 @@ async def health_check():
     url = 'https://cloudflare.com/cdn-cgi/trace'
     try:
         resp = await async_client.get(url)
+        if resp.status_code == 200:
+            logger.info('Health check OK')
+            if is_debug:
+                healthcheck_result = resp.content
+                return Response(healthcheck_result, 200, headers={ 'Content-Type': 'text/plain' })
+            else:
+                return 'OK', 200, { 'Content-Type': 'text/plain' }
+        else:
+            logger.error('Health check failed')
+            return 'Unhealthy', 500, { 'Content-Type': 'text/plain' }
     except Exception as err:
         logger.error(f'Got an exception during health check\nTraceback:\n{err}')
-        return 'Unhealthy', 500, { 'Content-Type': 'text/plain' }
-    finally:
-        await resp.aclose()
-    if resp.status_code == 200:
-        logger.info('Health check OK')
-        if is_debug:
-            healthcheck_result = resp.content
-            return Response(healthcheck_result, 200, headers={ 'Content-Type': 'text/plain' })
-        else:
-            return 'OK', 200, { 'Content-Type': 'text/plain' }
-    else:
-        logger.error('Health check failed')
         return 'Unhealthy', 500, { 'Content-Type': 'text/plain' }
 
 
