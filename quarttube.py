@@ -713,11 +713,14 @@ def find_sidx_moof_mp4(video_init_bytes):
 
 def find_cues_offset_webm(video_chunk):
     start_bytes = bytearray([0x1c, 0x53, 0xbb , 0x6b])
-    start_re = re.compile(bytes(start_bytes)+r'[@ABCD]'.encode())
+    start_re = re.compile(bytes(start_bytes))
     end_bytes = bytearray([0x1f, 0x43, 0xb6, 0x75])
     end_re = re.compile(r'.'.encode()+bytes(end_bytes), re.DOTALL)
     try:
-        indexStart = re.search(start_re, video_chunk).start()
+        indexStartList = []
+        for item in re.finditer(start_re, video_chunk):
+            indexStartList.append(item)
+        indexStart = indexStartList[1].start()
         logger.debug(f'indexStart: {indexStart}')
         indexEndList = []
         for item in re.finditer(end_re, video_chunk):
